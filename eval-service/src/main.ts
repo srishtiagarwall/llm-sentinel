@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+  // eval-service has no HTTP routes — it's a pure SQS consumer
+  await app.init();
+  console.log('LLM Sentinel Eval Service started — listening on SQS');
 }
 bootstrap();
