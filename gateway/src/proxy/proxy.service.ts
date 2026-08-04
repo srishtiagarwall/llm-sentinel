@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 import { ChatCompletionRequest, ProxyRequestMeta } from './proxy.dto';
 import { scanForPii, scanForInjection, estimateTokens, estimateCost } from '@llm-sentinel/guardrails';
-import { enforcePolicy } from '../guardrails/policy-enforcer';
+import { PolicyEnforcer } from '../guardrails/policy-enforcer';
 import { TraceService } from './trace.service';
 import { SqsEmitter } from './sqs-emitter';
 
@@ -23,6 +23,7 @@ export class ProxyService {
     private readonly config: ConfigService,
     private readonly traceService: TraceService,
     private readonly sqsEmitter: SqsEmitter,
+    private readonly policyEnforcer: PolicyEnforcer,
   ) {}
 
   async handleChatCompletion(body: ChatCompletionRequest, meta: ProxyRequestMeta) {
@@ -32,7 +33,14 @@ export class ProxyService {
     // --- PRE-LLM GUARDRAIL PIPELINE ---
     const pii = scanForPii(promptText);
     const injection = scanForInjection(promptText);
-    const policy = enforcePolicy({ tenantId: meta.tenantId, provider: meta.provider, pii, injection });
+    const policy = await this.policyEnforcer.enforce({
+      tenantId: meta.tenantId,
+      provider: meta.provider,
+      model: body.model,
+      userId: meta.userId,
+      pii,
+      injection,
+    });
 
     const promptHash = crypto.createHash('sha256').update(promptText).digest('hex');
     const inputTokens = estimateTokens(promptText);

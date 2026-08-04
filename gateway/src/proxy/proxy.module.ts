@@ -6,13 +6,17 @@ import { ProxyService } from './proxy.service';
 import { TraceService } from './trace.service';
 import { SqsEmitter } from './sqs-emitter';
 import { Trace } from '@llm-sentinel/tracing';
+import { PolicyEnforcer } from '../guardrails/policy-enforcer';
+import { PolicyCacheService } from '../guardrails/policy-cache.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Trace]),
     HttpModule,
+    AuthModule,
   ],
   controllers: [ProxyController],
-  providers: [ProxyService, TraceService, SqsEmitter],
+  providers: [ProxyService, TraceService, SqsEmitter, PolicyEnforcer, PolicyCacheService],
 })
 export class ProxyModule {}
