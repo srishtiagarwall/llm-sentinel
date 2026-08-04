@@ -5,6 +5,7 @@
     "gateway",
     "eval-service",
     "api",
+    "dashboard",
     "libs/*"
   ]
 }

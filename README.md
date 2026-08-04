@@ -26,19 +26,19 @@ Your App → LLM Sentinel Gateway → LLM Provider
 ## Architecture
 
 ```
-apps/
-├── gateway/          # NestJS proxy — hot path, <10ms overhead
-├── eval-service/     # Async SQS consumers — hallucination, toxicity, faithfulness scoring
-└── api/              # REST + WebSocket API for dashboard and admin
+gateway/          # NestJS proxy — hot path, <10ms overhead
+eval-service/      # Async SQS consumers — hallucination, toxicity, faithfulness scoring
+api/               # REST + WebSocket API for dashboard and admin
+dashboard/         # React + Vite frontend — live trace feed, alerts, stats
 
 libs/
-├── guardrails/       # PII detector, prompt injection scanner, policy enforcer
-├── evaluators/       # Hallucination, toxicity, relevance scorers (Gemini-as-Judge)
-├── tracing/          # Span builder, S3 uploader, DB writer
+├── guardrails/       # PII detector, prompt injection scanner, policy condition DSL
+├── evaluators/       # Hallucination, toxicity, faithfulness scorers (Gemini-as-Judge)
+├── tracing/          # Trace entity, hash-chain writer, cross-service event notifier
 └── audit/            # EU AI Act compliant report generator (PDF + JSON)
 
 infra/
-└── pulumi/           # AWS SQS, S3, RDS, ECS — Infrastructure as Code
+└── pulumi/           # AWS SQS, S3, RDS, ECS — Infrastructure as Code (not yet implemented)
 ```
 
 ## Tech Stack
@@ -66,21 +66,34 @@ infra/
 
 ### Run Locally
 
+This is an npm workspace monorepo — install once at the root, then run each service.
+
 ```bash
 # Clone the repo
 git clone https://github.com/srishtiagarwall/llm-sentinel.git
 cd llm-sentinel
 
 # Start infrastructure (PostgreSQL, Redis)
-docker-compose up -d
+docker-compose up -d postgres redis
 
-# Install dependencies and start gateway
-cd gateway && npm install && npm run start:dev
+# Install all workspace dependencies
+npm install
+
+# Apply SQL migrations (api/migrations/*.sql) against DATABASE_URL — no
+# migration runner is wired up yet, so run these by hand for now.
+
+# Start each service in its own terminal
+cd gateway && npm run start:dev        # :3000
+cd api && npm run start:dev            # :3001
+cd eval-service && npm run start:dev
+cd dashboard && npm run dev            # :5173 — the React frontend
 ```
+
+Open the dashboard, register a tenant, and log in — `POST /auth/register` on `api` creates the tenant's first user.
 
 ### Environment Variables
 
-Copy `.env.example` to `.env` in each app directory and fill in your values.
+Copy `.env.example` to `.env` in each app directory (`gateway`, `api`, `eval-service`, `dashboard`) and fill in your values. `JWT_SECRET` must match across `gateway`, `api`, and `eval-service` — they validate/sign the same tokens for cross-service calls.
 
 ```env
 # gateway/.env
@@ -91,6 +104,7 @@ AWS_SQS_TRACE_QUEUE_URL=
 AWS_REGION=ap-south-1
 GEMINI_API_KEY=
 JWT_SECRET=
+API_SERVICE_URL=http://localhost:3001
 ```
 
 ## Compliance
