@@ -7,5 +7,8 @@
     "api",
     "dashboard",
     "libs/*"
-  ]
+  ],
+  "scripts": {
+    "build:libs": "npm run build -w @llm-sentinel/tracing -w @llm-sentinel/guardrails -w @llm-sentinel/evaluators && npm run build -w @llm-sentinel/audit"
+  }
 }

@@ -21,9 +21,10 @@ export async function notifyTraceEvent(
   const serviceToken = jwtService.sign({ sub: 'internal-service', tenantId, role: 'service' });
 
   try {
+    // api's NestJS app applies a global 'api' prefix (see api/src/main.ts).
     await firstValueFrom(
       http.post(
-        `${apiUrl}/internal/events/trace`,
+        `${apiUrl}/api/internal/events/trace`,
         { traceId },
         { headers: { Authorization: `Bearer ${serviceToken}` } },
       ),

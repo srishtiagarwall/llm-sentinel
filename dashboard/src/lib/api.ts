@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+// api's NestJS app applies a global 'api' prefix (see api/src/main.ts) to every
+// REST route except the /dashboard WebSocket namespace, which is unprefixed.
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const API_URL = `${API_BASE}/api`;
 const TOKEN_KEY = 'llm-sentinel-token';
 
 export function getToken(): string | null {
@@ -91,4 +94,4 @@ export const dashboardApi = {
   getAlerts: (hours = 24) => request<AlertItem[]>(`/alerts?hours=${hours}`),
 };
 
-export { API_URL };
+export { API_URL, API_BASE };

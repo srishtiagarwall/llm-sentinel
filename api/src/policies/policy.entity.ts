@@ -35,10 +35,10 @@ export class Policy {
   enabled: boolean;
 
   // Optional scoping: null means "applies to all"
-  @Column({ name: 'model', nullable: true })
+  @Column({ name: 'model', type: 'varchar', nullable: true })
   model: string | null;
 
-  @Column({ name: 'user_id', nullable: true })
+  @Column({ name: 'user_id', type: 'varchar', nullable: true })
   userId: string | null;
 
   @CreateDateColumn({ name: 'created_at' })

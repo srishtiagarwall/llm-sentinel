@@ -47,12 +47,13 @@ export class PolicyCacheService {
   }
 
   private async refresh(tenantId: string): Promise<CachedPolicy[]> {
+    // api's NestJS app applies a global 'api' prefix (see api/src/main.ts).
     const apiUrl = this.config.get<string>('API_SERVICE_URL') ?? 'http://localhost:3001';
     const serviceToken = this.jwtService.sign({ sub: 'gateway-service', tenantId, role: 'service' });
 
     try {
       const response = await firstValueFrom(
-        this.http.get<CachedPolicy[]>(`${apiUrl}/policies/enabled`, {
+        this.http.get<CachedPolicy[]>(`${apiUrl}/api/policies/enabled`, {
           headers: { Authorization: `Bearer ${serviceToken}` },
         }),
       );
