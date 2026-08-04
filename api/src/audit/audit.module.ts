@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditController } from './audit.controller';
 import { AuditService } from './audit.service';
-import { Trace } from '../trace/trace.entity';
+import { Trace } from '@llm-sentinel/tracing';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({

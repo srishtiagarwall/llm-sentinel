@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { DashboardGateway } from './dashboard.gateway';
-import { Trace } from '../trace/trace.entity';
+import { Trace } from '@llm-sentinel/tracing';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({

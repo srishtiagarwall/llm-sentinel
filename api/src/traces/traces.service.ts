@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
-import { Trace } from '../trace/trace.entity';
+import { Trace } from '@llm-sentinel/tracing';
 
 export interface TraceFilter {
   tenantId: string;

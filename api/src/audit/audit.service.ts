@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Trace } from '../trace/trace.entity';
+import { Trace, verifyHashChain } from '@llm-sentinel/tracing';
 
 export interface AuditReport {
   meta: {
@@ -76,7 +76,7 @@ export class AuditService {
     });
 
     // Verify hash chain integrity (EU AI Act tamper-evidence check)
-    const hashChainIntegrity = this.verifyHashChain(traces);
+    const hashChainIntegrity = verifyHashChain(traces);
 
     return {
       meta: {
@@ -116,11 +116,5 @@ export class AuditService {
         chainHash: t.chainHash,
       })),
     };
-  }
-
-  private verifyHashChain(traces: Trace[]): { verified: boolean; totalTraces: number } {
-    // Chain integrity holds if every trace has a chainHash (tamper-evident field)
-    const allHaveHash = traces.every((t) => !!t.chainHash);
-    return { verified: allHaveHash, totalTraces: traces.length };
   }
 }

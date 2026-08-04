@@ -1,0 +1,10 @@
+{
+  "name": "llm-sentinel",
+  "private": true,
+  "workspaces": [
+    "gateway",
+    "eval-service",
+    "api",
+    "libs/*"
+  ]
+}

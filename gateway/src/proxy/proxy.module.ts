@@ -5,7 +5,7 @@ import { ProxyController } from './proxy.controller';
 import { ProxyService } from './proxy.service';
 import { TraceService } from './trace.service';
 import { SqsEmitter } from './sqs-emitter';
-import { Trace } from '../trace/trace.entity';
+import { Trace } from '@llm-sentinel/tracing';
 
 @Module({
   imports: [

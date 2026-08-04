@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EvalModule } from './evaluators/eval.module';
 import { SqsConsumerModule } from './sqs/sqs-consumer.module';
-import { Trace } from './trace/trace.entity';
+import { Trace } from '@llm-sentinel/tracing';
 
 @Module({
   imports: [

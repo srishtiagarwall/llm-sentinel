@@ -5,7 +5,7 @@ import { HallucinationEvaluator } from './hallucination.evaluator';
 import { ToxicityEvaluator } from './toxicity.evaluator';
 import { FaithfulnessEvaluator } from './faithfulness.evaluator';
 import { EvalOrchestrator } from './eval.orchestrator';
-import { Trace } from '../trace/trace.entity';
+import { Trace } from '@llm-sentinel/tracing';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Trace])],

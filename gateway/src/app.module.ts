@@ -4,7 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ProxyModule } from './proxy/proxy.module';
 import { AuthModule } from './auth/auth.module';
-import { Trace } from './trace/trace.entity';
+import { Trace } from '@llm-sentinel/tracing';
 
 @Module({
   imports: [

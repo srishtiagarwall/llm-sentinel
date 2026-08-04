@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Trace } from './trace/trace.entity';
+import { Trace } from '@llm-sentinel/tracing';
 import { AuthModule } from './auth/auth.module';
 import { TracesModule } from './traces/traces.module';
 import { DashboardModule } from './dashboard/dashboard.module';

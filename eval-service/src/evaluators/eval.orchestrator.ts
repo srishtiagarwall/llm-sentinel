@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { HallucinationEvaluator } from './hallucination.evaluator';
 import { ToxicityEvaluator } from './toxicity.evaluator';
 import { FaithfulnessEvaluator } from './faithfulness.evaluator';
-import { Trace } from '../trace/trace.entity';
+import { Trace } from '@llm-sentinel/tracing';
 
 export interface EvalJob {
   traceId: string;

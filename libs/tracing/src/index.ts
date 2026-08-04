@@ -1,3 +1,2 @@
-export * from './span-builder';
-export * from './trace-emitter';
-export * from './s3-uploader';
+export * from './trace.entity';
+export * from './trace-writer';
