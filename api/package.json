@@ -23,6 +23,7 @@
     "@llm-sentinel/audit": "*",
     "@llm-sentinel/tracing": "*",
     "@nestjs/common": "^11.0.1",
+    "bcryptjs": "^2.4.3",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.2",

@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { HallucinationEvaluator, ToxicityEvaluator, FaithfulnessEvaluator } from '@llm-sentinel/evaluators';
-import { Trace } from '@llm-sentinel/tracing';
+import { Trace, notifyTraceEvent } from '@llm-sentinel/tracing';
 
 export interface EvalJob {
   traceId: string;
@@ -22,6 +25,9 @@ export class EvalOrchestrator {
     private readonly hallucination: HallucinationEvaluator,
     private readonly toxicity: ToxicityEvaluator,
     private readonly faithfulness: FaithfulnessEvaluator,
+    private readonly http: HttpService,
+    private readonly jwtService: JwtService,
+    private readonly config: ConfigService,
   ) {}
 
   async run(job: EvalJob): Promise<void> {
@@ -42,6 +48,11 @@ export class EvalOrchestrator {
       hallucinationScore,
       toxicityScore,
       faithfulnessScore,
+    });
+
+    const apiUrl = this.config.get<string>('API_SERVICE_URL') ?? 'http://localhost:3001';
+    notifyTraceEvent(this.http, this.jwtService, apiUrl, job.tenantId, job.traceId).catch(() => {
+      // notifyTraceEvent already logs internally.
     });
   }
 }

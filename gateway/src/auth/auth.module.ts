@@ -3,9 +3,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
 
+// Token issuance lives in api's AuthService (real login) — gateway only
+// validates incoming JWTs and signs short-lived service tokens for its own
+// outbound calls (see PolicyCacheService).
 @Module({
   imports: [
     PassportModule,
@@ -18,8 +19,7 @@ import { AuthService } from './auth.service';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [JwtStrategy],
   exports: [JwtModule],
 })
 export class AuthModule {}

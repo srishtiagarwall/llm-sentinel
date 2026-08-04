@@ -9,6 +9,8 @@ import { AlertsModule } from './alerts/alerts.module';
 import { AuditModule } from './audit/audit.module';
 import { PoliciesModule } from './policies/policies.module';
 import { Policy } from './policies/policy.entity';
+import { User } from './auth/user.entity';
+import { InternalEventsModule } from './internal-events/internal-events.module';
 
 @Module({
   imports: [
@@ -19,7 +21,7 @@ import { Policy } from './policies/policy.entity';
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
-        entities: [Trace, Policy],
+        entities: [Trace, Policy, User],
         synchronize: false,
       }),
     }),
@@ -30,6 +32,7 @@ import { Policy } from './policies/policy.entity';
     AlertsModule,
     AuditModule,
     PoliciesModule,
+    InternalEventsModule,
   ],
 })
 export class AppModule {}
