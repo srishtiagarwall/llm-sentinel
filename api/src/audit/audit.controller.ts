@@ -2,11 +2,17 @@ import { Controller, Get, Query, UseGuards, Request, Res } from '@nestjs/common'
 import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
 import { AuditService } from './audit.service';
-import { IsDateString } from 'class-validator';
+import { IsDateString, IsIn, IsOptional } from 'class-validator';
 
 class AuditQueryDto {
   @IsDateString() from: string;
   @IsDateString() to: string;
+}
+
+class AuditDownloadQueryDto extends AuditQueryDto {
+  @IsIn(['json', 'pdf'])
+  @IsOptional()
+  format?: 'json' | 'pdf';
 }
 
 @Controller('audit')
@@ -23,22 +29,29 @@ export class AuditController {
     );
   }
 
-  // Returns the same report as a downloadable JSON file
+  // Returns the report as a downloadable file — JSON by default, PDF via ?format=pdf
   @Get('report/download')
   async downloadReport(
     @Request() req: any,
-    @Query() query: AuditQueryDto,
+    @Query() query: AuditDownloadQueryDto,
     @Res() res: Response,
   ) {
-    const report = await this.auditService.generateReport(
-      req.user.tenantId,
-      new Date(query.from),
-      new Date(query.to),
-    );
+    const tenantId = req.user.tenantId;
+    const from = new Date(query.from);
+    const to = new Date(query.to);
+    const baseFilename = `audit-report-${tenantId}-${query.from}-${query.to}`;
 
-    const filename = `audit-report-${req.user.tenantId}-${query.from}-${query.to}.json`;
+    if (query.format === 'pdf') {
+      const pdfBytes = await this.auditService.generateReportPdf(tenantId, from, to);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}.pdf"`);
+      res.send(Buffer.from(pdfBytes));
+      return;
+    }
+
+    const report = await this.auditService.generateReport(tenantId, from, to);
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}.json"`);
     res.send(JSON.stringify(report, null, 2));
   }
 }
