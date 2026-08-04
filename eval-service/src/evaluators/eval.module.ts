@@ -1,9 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { GeminiJudge } from './gemini-judge';
-import { HallucinationEvaluator } from './hallucination.evaluator';
-import { ToxicityEvaluator } from './toxicity.evaluator';
-import { FaithfulnessEvaluator } from './faithfulness.evaluator';
+import { GeminiJudge, HallucinationEvaluator, ToxicityEvaluator, FaithfulnessEvaluator } from '@llm-sentinel/evaluators';
 import { EvalOrchestrator } from './eval.orchestrator';
 import { Trace } from '@llm-sentinel/tracing';
 

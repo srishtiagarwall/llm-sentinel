@@ -4,10 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 import { ChatCompletionRequest, ProxyRequestMeta } from './proxy.dto';
-import { scanForPii } from '../guardrails/pii-detector';
-import { scanForInjection } from '../guardrails/injection-scanner';
+import { scanForPii, scanForInjection, estimateTokens, estimateCost } from '@llm-sentinel/guardrails';
 import { enforcePolicy } from '../guardrails/policy-enforcer';
-import { estimateTokens, estimateCost } from '../guardrails/token-estimator';
 import { TraceService } from './trace.service';
 import { SqsEmitter } from './sqs-emitter';
 

@@ -1,5 +1,4 @@
-import { PiiScanResult } from './pii-detector';
-import { InjectionScanResult } from './injection-scanner';
+import { PiiScanResult, InjectionScanResult } from '@llm-sentinel/guardrails';
 
 export interface PolicyContext {
   tenantId: string;

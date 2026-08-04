@@ -1,9 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { HallucinationEvaluator } from './hallucination.evaluator';
-import { ToxicityEvaluator } from './toxicity.evaluator';
-import { FaithfulnessEvaluator } from './faithfulness.evaluator';
+import { HallucinationEvaluator, ToxicityEvaluator, FaithfulnessEvaluator } from '@llm-sentinel/evaluators';
 import { Trace } from '@llm-sentinel/tracing';
 
 export interface EvalJob {

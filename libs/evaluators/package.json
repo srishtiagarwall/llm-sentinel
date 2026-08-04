@@ -1,0 +1,12 @@
+{
+  "name": "@llm-sentinel/evaluators",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.4"
+  }
+}
