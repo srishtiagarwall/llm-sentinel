@@ -1,5 +1,5 @@
 {
-  "name": "@llm-sentinel/audit",
+  "name": "@llm-sentinel/queue",
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",
@@ -9,13 +9,12 @@
     "test": "jest"
   },
   "dependencies": {
-    "@llm-sentinel/tracing": "*",
-    "typeorm": "^0.3.20",
-    "pdf-lib": "^1.17.1"
+    "@nestjs/common": "^11.0.1"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
     "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.0",
     "jest": "^30.0.0",
     "ts-jest": "^29.2.5"
   },

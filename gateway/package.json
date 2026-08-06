@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@llm-sentinel/guardrails": "*",
+    "@llm-sentinel/queue": "*",
     "@llm-sentinel/tracing": "*",
     "@aws-sdk/client-s3": "^3.1095.0",
     "@aws-sdk/client-sqs": "^3.1095.0",
