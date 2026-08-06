@@ -79,8 +79,11 @@ docker-compose up -d postgres redis
 # Install all workspace dependencies
 npm install
 
-# Apply SQL migrations (api/migrations/*.sql) against DATABASE_URL — no
-# migration runner is wired up yet, so run these by hand for now.
+# Build shared libs (gateway/api/eval-service depend on these)
+npm run build:libs
+
+# Apply database migrations
+cd api && npm run migration:run && cd ..
 
 # Start each service in its own terminal
 cd gateway && npm run start:dev        # :3000

@@ -17,11 +17,16 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "migration:run": "typeorm-ts-node-commonjs -d src/data-source.ts migration:run",
+    "migration:revert": "typeorm-ts-node-commonjs -d src/data-source.ts migration:revert",
+    "migration:show": "typeorm-ts-node-commonjs -d src/data-source.ts migration:show",
+    "seed": "ts-node -r tsconfig-paths/register src/scripts/seed.ts"
   },
   "dependencies": {
     "@llm-sentinel/audit": "*",
     "@llm-sentinel/tracing": "*",
+    "dotenv": "^16.4.7",
     "@nestjs/common": "^11.0.1",
     "bcryptjs": "^2.4.3",
     "@nestjs/config": "^4.0.4",
