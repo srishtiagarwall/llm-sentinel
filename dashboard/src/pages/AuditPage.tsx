@@ -44,8 +44,7 @@ export function AuditPage() {
     return new Date(`${dateStr}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}`).toISOString();
   }
 
-  function generate(e: FormEvent) {
-    e.preventDefault();
+  function runGenerate() {
     setLoading(true);
     setError(null);
     setDownloadError(null);
@@ -54,6 +53,11 @@ export function AuditPage() {
       .then(setReport)
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to generate report'))
       .finally(() => setLoading(false));
+  }
+
+  function generate(e: FormEvent) {
+    e.preventDefault();
+    runGenerate();
   }
 
   async function download(format: 'json' | 'pdf') {
@@ -98,7 +102,7 @@ export function AuditPage() {
         </div>
       </form>
 
-      {error && <ErrorBanner message={error} onRetry={generate} />}
+      {error && <ErrorBanner message={error} onRetry={runGenerate} />}
 
       {loading && (
         <div className="panel">

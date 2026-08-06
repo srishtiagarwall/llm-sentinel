@@ -169,6 +169,7 @@ export interface TraceListResult {
 }
 
 export interface TraceListParams {
+  [key: string]: string | number | boolean | undefined;
   from?: string;
   to?: string;
   model?: string;
