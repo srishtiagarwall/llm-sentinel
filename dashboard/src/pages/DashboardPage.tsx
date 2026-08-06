@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { dashboardApi, type DashboardOverview, type TraceSummary, type AlertItem } from '../lib/api';
+import { dashboardApi, type DashboardOverview, type TraceSummary, type AlertItem, type CostBreakdownItem } from '../lib/api';
 import { connectDashboardSocket } from '../lib/socket';
 import { StatTile } from '../components/StatTile';
 import { PageHeader } from '../components/PageHeader';
+import { HallucinationTrendChart } from '../components/HallucinationTrendChart';
+import { CostBreakdownChart } from '../components/CostBreakdownChart';
 
 const MAX_FEED_ITEMS = 50;
 
@@ -21,6 +23,7 @@ export function DashboardPage() {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [connected, setConnected] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [costBreakdown, setCostBreakdown] = useState<CostBreakdownItem[]>([]);
 
   const upsertTrace = useCallback((trace: TraceSummary) => {
     setTraces((prev) => {
@@ -32,12 +35,13 @@ export function DashboardPage() {
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([dashboardApi.getOverview(), dashboardApi.getAlerts(24)])
-      .then(([overviewData, alertsData]) => {
+    Promise.all([dashboardApi.getOverview(), dashboardApi.getAlerts(24), dashboardApi.getCostBreakdown()])
+      .then(([overviewData, alertsData, costData]) => {
         if (cancelled) return;
         setOverview(overviewData);
         setTraces(overviewData.recentTraces);
         setAlerts(alertsData);
+        setCostBreakdown(costData);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Failed to load dashboard data');
@@ -121,6 +125,18 @@ export function DashboardPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="panel-row">
+        <div className="panel">
+          <h2>Hallucination score (24h)</h2>
+          <HallucinationTrendChart data={overview?.hallucinationTrend ?? []} />
+        </div>
+
+        <div className="panel">
+          <h2>Cost by model</h2>
+          <CostBreakdownChart data={costBreakdown} />
         </div>
       </section>
     </div>

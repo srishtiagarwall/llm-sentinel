@@ -89,9 +89,16 @@ export interface AlertItem {
   createdAt: string;
 }
 
+export interface CostBreakdownItem {
+  model: string;
+  totalCost: string;
+  requestCount: string;
+}
+
 export const dashboardApi = {
   getOverview: () => request<DashboardOverview>('/dashboard/overview'),
   getAlerts: (hours = 24) => request<AlertItem[]>(`/alerts?hours=${hours}`),
+  getCostBreakdown: () => request<CostBreakdownItem[]>('/dashboard/cost-breakdown'),
 };
 
 // --- Policies ---

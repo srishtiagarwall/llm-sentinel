@@ -60,7 +60,11 @@ export class DashboardService {
       .addSelect('COUNT(*)', 'requestCount')
       .where('t.tenant_id = :tenantId', { tenantId })
       .groupBy('t.model')
-      .orderBy('totalCost', 'DESC')
+      // ORDER BY on an unquoted camelCase alias gets lowercased by Postgres
+      // ("totalCost" -> totalcost), which no longer matches the quoted
+      // SELECT alias TypeORM generates — order by the underlying expression
+      // instead of the alias to avoid the mismatch.
+      .orderBy('SUM(t.cost_usd)', 'DESC')
       .getRawMany();
   }
 }

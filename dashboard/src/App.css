@@ -989,3 +989,130 @@ input:focus {
   gap: 10px;
   margin-bottom: 10px;
 }
+
+/* --- Charts (hallucination trend, cost breakdown) --- */
+
+.trend-chart,
+.cost-chart {
+  --chart-series-1: #2a78d6;
+  position: relative;
+}
+
+@media (prefers-color-scheme: dark) {
+  .trend-chart,
+  .cost-chart {
+    --chart-series-1: #3987e5;
+  }
+}
+:root[data-theme='dark'] .trend-chart,
+:root[data-theme='dark'] .cost-chart {
+  --chart-series-1: #3987e5;
+}
+
+.trend-chart svg,
+.cost-chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.trend-chart__gridline {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.trend-chart__tick {
+  fill: var(--text);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-chart__area {
+  fill: var(--chart-series-1);
+  opacity: 0.1;
+}
+
+.trend-chart__line {
+  stroke: var(--chart-series-1);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.trend-chart__dot {
+  fill: var(--chart-series-1);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+
+.trend-chart__crosshair {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.trend-chart__tooltip {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 12px;
+}
+
+.trend-chart__tooltip-time {
+  color: var(--text);
+}
+
+.trend-chart__tooltip-value {
+  color: var(--text-h);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cost-chart__row {
+  outline: none;
+}
+
+.cost-chart__label {
+  fill: var(--text);
+  font-size: 12px;
+}
+
+.cost-chart__bar {
+  fill: var(--chart-series-1);
+}
+
+.cost-chart__bar--hover {
+  opacity: 0.85;
+}
+
+.cost-chart__value {
+  fill: var(--text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cost-chart__tooltip {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.cost-chart__tooltip-model {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.cost-chart__tooltip-value {
+  color: var(--text);
+}
