@@ -1,13 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { dashboardApi, type DashboardOverview, type TraceSummary, type AlertItem } from '../lib/api';
 import { connectDashboardSocket } from '../lib/socket';
-import { useAuth } from '../lib/auth-context';
 import { StatTile } from '../components/StatTile';
+import { PageHeader } from '../components/PageHeader';
 
 const MAX_FEED_ITEMS = 50;
 
-function formatCost(usd: number): string {
-  return `$${Number(usd).toFixed(4)}`;
+function formatCost(usd: number | string): string {
+  const n = Number(usd);
+  return Number.isFinite(n) ? `$${n.toFixed(4)}` : '—';
 }
 
 function formatTime(iso: string): string {
@@ -15,7 +16,6 @@ function formatTime(iso: string): string {
 }
 
 export function DashboardPage() {
-  const { logout } = useAuth();
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [traces, setTraces] = useState<TraceSummary[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -70,16 +70,16 @@ export function DashboardPage() {
   }, [upsertTrace]);
 
   return (
-    <div className="dashboard">
-      <header className="dashboard__header">
-        <h1>LLM Sentinel</h1>
-        <div className="dashboard__header-right">
+    <div className="page">
+      <PageHeader
+        title="Dashboard"
+        subtitle="Real-time overview of traffic, cost, and risk across the gateway."
+        actions={
           <span className={`live-indicator ${connected ? 'live-indicator--on' : ''}`}>
             {connected ? 'Live' : 'Reconnecting…'}
           </span>
-          <button onClick={logout}>Log out</button>
-        </div>
-      </header>
+        }
+      />
 
       {loadError && <div className="banner banner--error">{loadError}</div>}
 
