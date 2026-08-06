@@ -7,7 +7,7 @@ import { StatTile } from '../components/StatTile';
 const MAX_FEED_ITEMS = 50;
 
 function formatCost(usd: number): string {
-  return `$${usd.toFixed(4)}`;
+  return `$${Number(usd).toFixed(4)}`;
 }
 
 function formatTime(iso: string): string {
