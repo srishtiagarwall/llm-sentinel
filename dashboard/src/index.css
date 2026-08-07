@@ -1,103 +1,176 @@
+/*
+  LLM Sentinel — "Signal Room"
+
+  This is an operator's console, not a marketing surface: engineers watch
+  live LLM traffic here for the moment something goes wrong (PII leak,
+  injection attempt, policy breach, cost spike). The palette and type system
+  are built around that job — a quiet, low-saturation ground so the three
+  semantic states (nominal / warning / critical) are the only things that
+  ever raise their voice, and tabular data reads like instrument telemetry,
+  not a spreadsheet.
+*/
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* --- Ground --- */
+  --ink: #f4f6f2;
+  --ink-raised: #ffffff;
+  --ink-sunken: #e9ece5;
+  --text: #4b5147;
+  --text-h: #10130f;
+  --line: #d7dbcf;
+  --line-strong: #b7bda9;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* --- Signal (the one accent — system status, links, focus) --- */
+  --signal: #0f8a52;
+  --signal-bg: rgba(15, 138, 82, 0.1);
+  --signal-border: rgba(15, 138, 82, 0.35);
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  /* --- Semantic states (separate from --signal; these are alarms) --- */
+  --warn: #b3690a;
+  --warn-bg: rgba(179, 105, 10, 0.12);
+  --warn-border: rgba(179, 105, 10, 0.35);
+  --danger: #c22929;
+  --danger-bg: rgba(194, 41, 41, 0.1);
+  --danger-border: rgba(194, 41, 41, 0.35);
+
+  /* --- Console rail: fixed dark bezel regardless of theme, like hardware --- */
+  --rail-bg: #0b0f0c;
+  --rail-text: #9aa596;
+  --rail-text-h: #f4f6f2;
+  --rail-line: #1c221b;
+  --rail-active-bg: rgba(61, 220, 132, 0.12);
+  --rail-active-text: #3ddc84;
+
+  --shadow: 0 12px 28px -12px rgba(10, 14, 10, 0.28), 0 2px 6px -2px rgba(10, 14, 10, 0.12);
+
+  /* --- Type --- */
+  --sans: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  --mono: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+
+  font: 15px/1.5 var(--sans);
   color-scheme: light dark;
   color: var(--text);
-  background: var(--bg);
+  background: var(--ink);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+    --ink: #0c0f0d;
+    --ink-raised: #12160f;
+    --ink-sunken: #080a08;
+    --text: #9aa596;
+    --text-h: #eef1e9;
+    --line: #232a20;
+    --line-strong: #333d2e;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+    --signal: #3ddc84;
+    --signal-bg: rgba(61, 220, 132, 0.1);
+    --signal-border: rgba(61, 220, 132, 0.35);
+
+    --warn: #ffb020;
+    --warn-bg: rgba(255, 176, 32, 0.12);
+    --warn-border: rgba(255, 176, 32, 0.35);
+    --danger: #ff5c5c;
+    --danger-bg: rgba(255, 92, 92, 0.12);
+    --danger-border: rgba(255, 92, 92, 0.35);
+
+    --rail-bg: #08090a;
+    --rail-line: #1a1c19;
+
+    --shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.6), 0 2px 6px -2px rgba(0, 0, 0, 0.4);
   }
+}
+
+:root[data-theme='dark'] {
+  --ink: #0c0f0d;
+  --ink-raised: #12160f;
+  --ink-sunken: #080a08;
+  --text: #9aa596;
+  --text-h: #eef1e9;
+  --line: #232a20;
+  --line-strong: #333d2e;
+  --signal: #3ddc84;
+  --signal-bg: rgba(61, 220, 132, 0.1);
+  --signal-border: rgba(61, 220, 132, 0.35);
+  --warn: #ffb020;
+  --warn-bg: rgba(255, 176, 32, 0.12);
+  --warn-border: rgba(255, 176, 32, 0.35);
+  --danger: #ff5c5c;
+  --danger-bg: rgba(255, 92, 92, 0.12);
+  --danger-border: rgba(255, 92, 92, 0.35);
+  --rail-bg: #08090a;
+  --rail-line: #1a1c19;
+  --shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.6), 0 2px 6px -2px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme='light'] {
+  --ink: #f4f6f2;
+  --ink-raised: #ffffff;
+  --ink-sunken: #e9ece5;
+  --text: #4b5147;
+  --text-h: #10130f;
+  --line: #d7dbcf;
+  --line-strong: #b7bda9;
+  --signal: #0f8a52;
+  --signal-bg: rgba(15, 138, 82, 0.1);
+  --signal-border: rgba(15, 138, 82, 0.35);
+  --warn: #b3690a;
+  --warn-bg: rgba(179, 105, 10, 0.12);
+  --warn-border: rgba(179, 105, 10, 0.35);
+  --danger: #c22929;
+  --danger-bg: rgba(194, 41, 41, 0.1);
+  --danger-border: rgba(194, 41, 41, 0.35);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 #root {
   width: 100%;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: left;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
-}
-
-#root:has(.auth-page) {
-  width: 1126px;
-  text-align: center;
-  border-inline: 1px solid var(--border);
 }
 
 body {
   margin: 0;
+  background: var(--ink);
 }
 
 h1,
 h2 {
-  font-family: var(--heading);
-  font-weight: 500;
+  font-family: var(--sans);
+  font-weight: 700;
   color: var(--text-h);
+  text-wrap: balance;
 }
 
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+  font-size: 22px;
+  letter-spacing: -0.2px;
+  margin: 0;
 }
+
 h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 12px;
+  font-weight: 700;
+  color: var(--text-h);
 }
+
 p {
   margin: 0;
+}
+
+a {
+  color: var(--signal);
 }
 
 code,
@@ -109,8 +182,28 @@ code,
 }
 
 code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  font-size: 13px;
+  padding: 2px 6px;
+  background: var(--ink-sunken);
+  border: 1px solid var(--line);
+}
+
+::selection {
+  background: var(--signal-bg);
+  color: var(--text-h);
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
