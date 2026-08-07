@@ -1,5 +1,7 @@
 # Build context must be the repo root (see docker-compose.yml) — npm
-# workspaces monorepo, same reasoning as gateway/Dockerfile.
+# workspaces monorepo; dashboard has no standalone package-lock.json, only
+# the root one. Unlike gateway/api/eval-service, dashboard doesn't depend on
+# libs/*, so it only needs its own source copied in, not the shared libs.
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
@@ -13,16 +15,12 @@ COPY libs/evaluators/package.json libs/evaluators/package.json
 COPY libs/queue/package.json libs/queue/package.json
 COPY libs/audit/package.json libs/audit/package.json
 RUN npm ci
-COPY libs ./libs
-COPY api ./api
-RUN npm run build:libs
-RUN npm run build -w api
+COPY dashboard ./dashboard
+WORKDIR /app/dashboard
+RUN npm run build
 
-FROM node:22-alpine AS runner
-WORKDIR /app
-COPY --from=builder /app/api/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/libs ./libs
-COPY --from=builder /app/api/package.json ./package.json
-EXPOSE 3001
-CMD ["node", "dist/src/main"]
+FROM nginx:1.27-alpine AS runner
+COPY --from=builder /app/dashboard/dist /usr/share/nginx/html
+COPY dashboard/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

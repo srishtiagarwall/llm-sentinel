@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Runs the root `test` script: builds libs/*, then runs jest across
+      # gateway, api, eval-service, and every lib — see package.json.
+      - name: Run tests
+        run: npm test
+
+  docker-build:
+    name: Docker build (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [gateway, api, eval-service, dashboard]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Every Dockerfile expects the repo root as build context (npm
+      # workspaces monorepo — see each Dockerfile's top-of-file comment for
+      # why). This job only proves the images build, not that the resulting
+      # containers behave correctly end-to-end.
+      - name: Build ${{ matrix.service }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service }}/Dockerfile
+          push: false
+          tags: llm-sentinel-${{ matrix.service }}:ci
+
+  judge-validation:
+    name: LLM judge validation (informational)
+    runs-on: ubuntu-latest
+    # Calls the real Gemini API against the hand-labeled dataset in
+    # libs/evaluators/eval-harness — network-dependent and costs tokens, so
+    # it's informational rather than a merge gate: continue-on-error means a
+    # transient API issue or a judge-prompt regression is visible in the run
+    # log without blocking every PR. See docs/adr/0002-llm-judge-validation.md.
+    continue-on-error: true
+    if: ${{ github.repository_owner != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run judge validation harness
+        working-directory: libs/evaluators
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "GEMINI_API_KEY secret not set — skipping (this job is informational only)."
+            exit 0
+          fi
+          npm run validate-judge
