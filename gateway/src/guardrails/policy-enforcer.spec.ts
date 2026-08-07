@@ -73,4 +73,104 @@ describe('PolicyEnforcer', () => {
     expect(result.allowed).toBe(true);
     expect(result.alerts).toContain('POLICY:block-pii-external');
   });
+
+  it('blocks the baseline prompt-injection rule', async () => {
+    const enforcer = new PolicyEnforcer(makeCache([]));
+    const result = await enforcer.enforce({
+      tenantId: 't1',
+      provider: 'openai',
+      model: 'gpt-4o',
+      pii: { detected: false, types: [], redacted: '' },
+      injection: { detected: true, pattern: 'role_override' },
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.violations).toContain('PROMPT_INJECTION:role_override');
+  });
+
+  it('does not fire the baseline PII violation when the provider is internal', async () => {
+    const enforcer = new PolicyEnforcer(makeCache([]));
+    const result = await enforcer.enforce({
+      tenantId: 't1',
+      provider: 'internal',
+      model: 'gpt-4o',
+      pii: { detected: true, types: ['EMAIL'], redacted: '' },
+      injection: { detected: false, pattern: null },
+    });
+    expect(result.allowed).toBe(true);
+    expect(result.violations).toEqual([]);
+  });
+
+  it('does not apply a policy scoped to a different userId', async () => {
+    const enforcer = new PolicyEnforcer(makeCache([makePolicy({ userId: 'user-1' })]));
+    const result = await enforcer.enforce({
+      tenantId: 't1',
+      provider: 'openai',
+      model: 'gpt-4o',
+      userId: 'user-2',
+      pii: { detected: true, types: [], redacted: '' },
+      injection: { detected: false, pattern: null },
+    });
+    expect(result.violations).not.toContain('POLICY:block-pii-external');
+  });
+
+  it('applies a policy scoped to a userId when it matches', async () => {
+    const enforcer = new PolicyEnforcer(makeCache([makePolicy({ userId: 'user-1' })]));
+    const result = await enforcer.enforce({
+      tenantId: 't1',
+      provider: 'openai',
+      model: 'gpt-4o',
+      userId: 'user-1',
+      pii: { detected: true, types: [], redacted: '' },
+      injection: { detected: false, pattern: null },
+    });
+    expect(result.violations).toContain('POLICY:block-pii-external');
+  });
+
+  it('records a violation without an alert for a BLOCK policy with alert=false', async () => {
+    const enforcer = new PolicyEnforcer(makeCache([makePolicy({ alert: false })]));
+    const result = await enforcer.enforce({
+      tenantId: 't1',
+      provider: 'openai',
+      model: 'gpt-4o',
+      pii: { detected: true, types: [], redacted: '' },
+      injection: { detected: false, pattern: null },
+    });
+    expect(result.violations).toContain('POLICY:block-pii-external');
+    expect(result.alerts).not.toContain('POLICY:block-pii-external');
+  });
+
+  it('accumulates violations from both the baseline guard and a CRUD policy in the same call', async () => {
+    const enforcer = new PolicyEnforcer(makeCache([makePolicy({ name: 'extra-block' })]));
+    const result = await enforcer.enforce({
+      tenantId: 't1',
+      provider: 'openai',
+      model: 'gpt-4o',
+      pii: { detected: true, types: ['EMAIL'], redacted: '' },
+      injection: { detected: false, pattern: null },
+    });
+    expect(result.violations).toEqual(
+      expect.arrayContaining(['PII_TO_EXTERNAL_PROVIDER:EMAIL', 'POLICY:extra-block']),
+    );
+    expect(result.allowed).toBe(false);
+  });
+
+  it('evaluates multiple policies independently — one BLOCK and one ALERT-only', async () => {
+    const enforcer = new PolicyEnforcer(
+      makeCache([
+        makePolicy({ name: 'blocker', condition: "provider == 'openai'", alert: false }),
+        makePolicy({ name: 'alerter', action: 'ALERT', condition: "provider == 'openai'", alert: true }),
+      ]),
+    );
+    const result = await enforcer.enforce({
+      tenantId: 't1',
+      provider: 'openai',
+      model: 'gpt-4o',
+      // no PII/injection here — isolating the CRUD-policy interaction from the baseline guards
+      pii: { detected: false, types: [], redacted: '' },
+      injection: { detected: false, pattern: null },
+    });
+    expect(result.violations).toEqual(['POLICY:blocker']);
+    expect(result.alerts).toEqual(['POLICY:alerter']);
+    expect(result.allowed).toBe(false);
+  });
 });

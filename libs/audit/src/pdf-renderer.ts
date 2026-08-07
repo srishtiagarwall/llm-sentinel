@@ -76,6 +76,9 @@ export async function renderAuditReportPdf(report: AuditReport): Promise<Uint8Ar
   cursor.subheading('Hash Chain Integrity (EU AI Act Article 12 Tamper-Evidence)');
   cursor.line(`Verified: ${report.hashChainIntegrity.verified ? 'YES' : 'NO'}`);
   cursor.line(`Total traces in chain: ${report.hashChainIntegrity.totalTraces}`);
+  if (!report.hashChainIntegrity.verified) {
+    cursor.line(`Chain broken at trace: ${report.hashChainIntegrity.brokenAt}`);
+  }
   cursor.spacer(14);
 
   cursor.subheading('Policy Violations');

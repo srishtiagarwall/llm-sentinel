@@ -26,6 +26,7 @@ export interface AuditReport {
   hashChainIntegrity: {
     verified: boolean;
     totalTraces: number;
+    brokenAt: string | null;
   };
   traces: {
     id: string;

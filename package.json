@@ -10,6 +10,6 @@
   ],
   "scripts": {
     "build:libs": "npm run build -w @llm-sentinel/tracing -w @llm-sentinel/guardrails -w @llm-sentinel/evaluators -w @llm-sentinel/queue && npm run build -w @llm-sentinel/audit",
-    "test": "npm run build:libs && npm test -w gateway -w api -w eval-service -w @llm-sentinel/guardrails -w @llm-sentinel/audit -w @llm-sentinel/queue"
+    "test": "npm run build:libs && npm test -w gateway -w api -w eval-service -w @llm-sentinel/guardrails -w @llm-sentinel/audit -w @llm-sentinel/queue -w @llm-sentinel/tracing"
   }
 }
