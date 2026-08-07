@@ -18,3 +18,11 @@ export interface ProxyRequestMeta {
   sessionId?: string;
   provider: string;
 }
+
+export interface UpstreamAttempt {
+  provider: string;
+  ok: boolean;
+  latencyMs: number;
+  error?: string;
+}
+
