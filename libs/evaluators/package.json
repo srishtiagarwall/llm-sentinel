@@ -5,14 +5,18 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "validate-judge": "ts-node -r tsconfig-paths/register eval-harness/run-judge-validation.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@nestjs/common": "^11.0.1",
-    "@nestjs/config": "^4.0.4"
+    "@nestjs/config": "^4.0.4",
+    "dotenv": "^16.4.7"
   },
   "devDependencies": {
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0"
   }
 }
