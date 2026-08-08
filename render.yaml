@@ -2,10 +2,20 @@
 # https://render.com/docs/blueprint-spec
 #
 # Topology (see README.md's "Deploying to Render" section for the full walkthrough):
-#   - postgres, redis (keyvalue)   managed data stores (Render free tier)
+#   - postgres                      managed data store (Render free tier)
 #   - api, gateway                  public Docker web services
 #   - eval-service                  background worker (no public port — matches local setup)
 #   - dashboard                     static site (Vite build), talks to `api` over HTTPS + WSS
+#
+# No Redis service here on purpose: Redis is only used by gateway's
+# PolicyCacheService (api doesn't touch it, and gateway's rate limiter is
+# in-memory per ADR 0001, not Redis-backed) — and that cache already fails
+# open on any Redis error, falling back to fetching policies directly from
+# `api` on every request (see PolicyCacheService.getEnabledPolicies). Render's
+# free tier allows only one Key Value instance per account; rather than force
+# you to either give one up or pay, this deploy just runs without the cache.
+# If you want it, add a Key Value service and REDIS_URL back in — nothing
+# else needs to change.
 #
 # All four app Dockerfiles build from the repo root context (npm workspaces
 # monorepo) — see the comment at the top of each Dockerfile. Render's
@@ -23,11 +33,6 @@ databases:
     user: llm_sentinel
 
 services:
-  - type: keyvalue
-    name: llm-sentinel-redis
-    plan: free
-    ipAllowList: []
-
   - type: web
     name: llm-sentinel-api
     runtime: docker
@@ -44,11 +49,6 @@ services:
         fromDatabase:
           name: llm-sentinel-postgres
           property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: llm-sentinel-redis
-          property: connectionString
       - key: JWT_SECRET
         generateValue: true
 
@@ -62,11 +62,6 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: llm-sentinel-postgres
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: llm-sentinel-redis
           property: connectionString
       - key: JWT_SECRET
         sync: false # set manually to the exact same value as llm-sentinel-api's JWT_SECRET — see README
