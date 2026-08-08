@@ -95,10 +95,22 @@ jobs:
       - name: Build shared libs
         run: npm run build:libs
 
+      # Render's `status: available` (polled above) evidently doesn't
+      # guarantee the instance reliably accepts external connections yet —
+      # seen in practice as an immediate "Connection terminated unexpectedly"
+      # right after creation, which a short retry-with-backoff clears up.
       - name: Run migrations against the new database
         env:
           DATABASE_URL: ${{ steps.conn.outputs.url }}?sslmode=require
-        run: npm run migration:run -w api
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5; do
+            if npm run migration:run -w api; then exit 0; fi
+            echo "migration:run attempt $i/5 failed, retrying in 15s..."
+            sleep 15
+          done
+          echo "::error::Migrations failed after 5 attempts against the new database. Old database was NOT touched; delete the orphaned new instance manually from the Render dashboard."
+          exit 1
 
       - name: Seed demo data into the new database
         env:
