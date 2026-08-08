@@ -3,8 +3,9 @@
 #
 # Topology (see README.md's "Deploying to Render" section for the full walkthrough):
 #   - postgres                      managed data store (Render free tier)
-#   - api, gateway                  public Docker web services
-#   - eval-service                  background worker (no public port — matches local setup)
+#   - api, gateway, eval-service    public Docker web services (eval-service is a web
+#                                    service only because Render's free tier has no
+#                                    Background Worker plan — see its comment below)
 #   - dashboard                     static site (Vite build), talks to `api` over HTTPS + WSS
 #
 # No Redis service here on purpose: Redis is only used by gateway's
@@ -77,12 +78,19 @@ services:
           name: llm-sentinel-api
           property: hostport
 
-  - type: worker
+  - type: web
     name: llm-sentinel-eval-service
     runtime: docker
     dockerContext: .
     dockerfilePath: ./eval-service/Dockerfile
     plan: free
+    # Render's free tier has no Background Worker plan — this runs as a Web
+    # Service instead. eval-service's real job (polling the trace-eval
+    # queue) starts on module init and is unrelated to HTTP; the listen()
+    # call in main.ts exists only so this satisfies Render's web-service
+    # port requirement. See main.ts's comment and the README's Render
+    # walkthrough. Nothing needs to actually call this service's HTTP
+    # endpoint for it to do its job.
     envVars:
       - key: DATABASE_URL
         fromDatabase:

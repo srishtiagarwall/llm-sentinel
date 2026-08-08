@@ -24,4 +24,5 @@ COPY --from=builder /app/eval-service/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/libs ./libs
 COPY --from=builder /app/eval-service/package.json ./package.json
+EXPOSE 3002
 CMD ["node", "dist/src/main"]
