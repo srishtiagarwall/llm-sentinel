@@ -12,13 +12,23 @@ export interface QueueMessage<T> {
 // timestamp gives FIFO ordering across processes without a broker. Meant for
 // local dev only (USE_LOCAL_QUEUE=true) — swap back to SqsEmitter/consumer
 // for anything that needs real durability or cross-machine delivery.
+// Monotonic per-process tiebreaker for send() — Date.now() alone ties when
+// multiple messages are sent within the same millisecond (routine under fast
+// sequential test execution, and possible in production under load), and the
+// filename's random UUID suffix sorts arbitrarily relative to call order
+// when that happens. This counter guarantees the filename ordering matches
+// call order even on a timestamp tie; it does not need to survive a process
+// restart since Date.now() alone provides ordering across restarts.
+let sendSequence = 0;
+
 export class LocalFileQueue<T> {
   constructor(private readonly queueDir: string) {
     mkdirSync(this.queueDir, { recursive: true });
   }
 
   async send(body: T): Promise<void> {
-    const filename = `${Date.now().toString().padStart(15, '0')}-${randomUUID()}.json`;
+    const seq = (sendSequence++).toString().padStart(9, '0');
+    const filename = `${Date.now().toString().padStart(15, '0')}-${seq}-${randomUUID()}.json`;
     const tmpPath = join(this.queueDir, `.${filename}.tmp`);
     const finalPath = join(this.queueDir, filename);
     // Write to a temp file then rename — avoids a reader seeing a partial write.
