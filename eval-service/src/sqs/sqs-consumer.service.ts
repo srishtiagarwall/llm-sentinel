@@ -6,7 +6,8 @@ import {
   DeleteMessageCommand,
   Message,
 } from '@aws-sdk/client-sqs';
-import { LocalFileQueue } from '@llm-sentinel/queue';
+import { LocalFileQueue, PostgresQueue } from '@llm-sentinel/queue';
+import { Pool } from 'pg';
 import { join } from 'path';
 import { EvalOrchestrator, EvalJob } from '../evaluators/eval.orchestrator';
 
@@ -16,6 +17,8 @@ import { EvalOrchestrator, EvalJob } from '../evaluators/eval.orchestrator';
 // see the matching comment in gateway/src/proxy/sqs-emitter.ts.
 const DEFAULT_LOCAL_QUEUE_DIR = join(process.cwd(), '..', '.local-queue', 'trace-eval');
 const LOCAL_POLL_INTERVAL_MS = 1000;
+const QUEUE_NAME = 'trace-eval';
+const STALE_CLAIM_MS = 60_000;
 
 @Injectable()
 export class SqsConsumerService implements OnModuleInit, OnModuleDestroy {
@@ -23,6 +26,7 @@ export class SqsConsumerService implements OnModuleInit, OnModuleDestroy {
   private readonly client: SQSClient | null = null;
   private readonly queueUrl: string = '';
   private readonly localQueue: LocalFileQueue<EvalJob> | null = null;
+  private readonly postgresQueue: PostgresQueue<EvalJob> | null = null;
   private polling = false;
   private pollTimer: NodeJS.Timeout | null = null;
 
@@ -30,8 +34,12 @@ export class SqsConsumerService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly orchestrator: EvalOrchestrator,
   ) {
-    const useLocalQueue = this.config.get<string>('USE_LOCAL_QUEUE') === 'true';
-    if (useLocalQueue) {
+    // Must match gateway's SqsEmitter branch — see its comment for why.
+    if (this.config.get<string>('QUEUE_BACKEND') === 'postgres') {
+      const pool = new Pool({ connectionString: this.config.get<string>('DATABASE_URL') });
+      this.postgresQueue = new PostgresQueue<EvalJob>(pool, QUEUE_NAME);
+      this.logger.log('Using Postgres-backed queue for trace eval consume');
+    } else if (this.config.get<string>('USE_LOCAL_QUEUE') === 'true') {
       const dir = this.config.get<string>('LOCAL_QUEUE_DIR') || DEFAULT_LOCAL_QUEUE_DIR;
       this.localQueue = new LocalFileQueue<EvalJob>(dir);
       this.logger.log(`Using local file queue for trace eval consume (dir: ${dir})`);
@@ -44,7 +52,7 @@ export class SqsConsumerService implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleInit() {
-    if (!this.localQueue && !this.queueUrl) {
+    if (!this.postgresQueue && !this.localQueue && !this.queueUrl) {
       this.logger.warn('SQS queue URL not configured — eval consumer not started');
       return;
     }
@@ -61,7 +69,18 @@ export class SqsConsumerService implements OnModuleInit, OnModuleDestroy {
     if (!this.polling) return;
 
     try {
-      if (this.localQueue) {
+      if (this.postgresQueue) {
+        // Unlike SQS, a claimed-but-never-deleted row (consumer crashed
+        // mid-job) doesn't auto-expire — release anything claimed too long
+        // ago back to the pool before claiming new work.
+        await this.postgresQueue.requeueStale(STALE_CLAIM_MS);
+        const messages = await this.postgresQueue.receive(10);
+        if (messages.length > 0) {
+          await Promise.allSettled(
+            messages.map(({ receiptHandle, body }) => this.runJob(body, () => this.postgresQueue!.delete(receiptHandle))),
+          );
+        }
+      } else if (this.localQueue) {
         const messages = await this.localQueue.receive(10);
         if (messages.length > 0) {
           await Promise.allSettled(
@@ -87,9 +106,9 @@ export class SqsConsumerService implements OnModuleInit, OnModuleDestroy {
       this.logger.error('Queue poll error', err);
     }
 
-    // Real SQS uses long-polling so we can re-poll immediately; the local
-    // queue has no such wait, so poll on a short interval instead.
-    const delay = this.localQueue ? LOCAL_POLL_INTERVAL_MS : 0;
+    // Real SQS uses long-polling so we can re-poll immediately; local/Postgres
+    // queues have no such wait, so poll on a short interval instead.
+    const delay = this.postgresQueue || this.localQueue ? LOCAL_POLL_INTERVAL_MS : 0;
     this.pollTimer = setTimeout(() => this.poll(), delay);
   }
 

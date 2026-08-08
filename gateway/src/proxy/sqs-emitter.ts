@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
-import { LocalFileQueue } from '@llm-sentinel/queue';
+import { LocalFileQueue, PostgresQueue } from '@llm-sentinel/queue';
+import { Pool } from 'pg';
 import { join } from 'path';
 
 export interface TracePayload {
@@ -11,6 +12,8 @@ export interface TracePayload {
   model: string;
   tenantId: string;
 }
+
+const QUEUE_NAME = 'trace-eval';
 
 // Shared with eval-service's SqsConsumerService — both must point at the same
 // directory for the local queue to work. See LOCAL_QUEUE_DIR in each .env.
@@ -23,12 +26,20 @@ const DEFAULT_LOCAL_QUEUE_DIR = join(process.cwd(), '..', '.local-queue', 'trace
 export class SqsEmitter {
   private readonly logger = new Logger(SqsEmitter.name);
   private readonly client: SQSClient | null = null;
-  private readonly queueUrl: string;
+  private readonly queueUrl: string = '';
   private readonly localQueue: LocalFileQueue<TracePayload> | null = null;
+  private readonly postgresQueue: PostgresQueue<TracePayload> | null = null;
 
   constructor(private readonly config: ConfigService) {
-    const useLocalQueue = this.config.get<string>('USE_LOCAL_QUEUE') === 'true';
-    if (useLocalQueue) {
+    // QUEUE_BACKEND=postgres takes priority — used when gateway and
+    // eval-service run as separate machines with no shared disk (e.g. two
+    // Render services), where LocalFileQueue's directory-on-disk approach
+    // can't work. See libs/queue/src/postgres-queue.ts.
+    if (this.config.get<string>('QUEUE_BACKEND') === 'postgres') {
+      const pool = new Pool({ connectionString: this.config.get<string>('DATABASE_URL') });
+      this.postgresQueue = new PostgresQueue<TracePayload>(pool, QUEUE_NAME);
+      this.logger.log('Using Postgres-backed queue for trace eval emit');
+    } else if (this.config.get<string>('USE_LOCAL_QUEUE') === 'true') {
       const dir = this.config.get<string>('LOCAL_QUEUE_DIR') || DEFAULT_LOCAL_QUEUE_DIR;
       this.localQueue = new LocalFileQueue<TracePayload>(dir);
       this.logger.log(`Using local file queue for trace eval emit (dir: ${dir})`);
@@ -39,6 +50,11 @@ export class SqsEmitter {
   }
 
   async emit(payload: TracePayload): Promise<void> {
+    if (this.postgresQueue) {
+      await this.postgresQueue.send(payload);
+      return;
+    }
+
     if (this.localQueue) {
       await this.localQueue.send(payload);
       return;

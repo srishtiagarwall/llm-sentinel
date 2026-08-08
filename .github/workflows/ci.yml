@@ -10,6 +10,24 @@ jobs:
   test:
     name: Unit tests
     runs-on: ubuntu-latest
+    # Only libs/queue's PostgresQueue tests need this — they're skipped
+    # automatically when TEST_DATABASE_URL isn't set (see
+    # libs/queue/src/postgres-queue.spec.ts), so this service container
+    # exists purely to turn that skip into a real run in CI.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: llm_sentinel_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -21,9 +39,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Create queue_messages table
+        env:
+          PGPASSWORD: postgres
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          psql -h localhost -U postgres -d llm_sentinel_test -c "
+            CREATE TABLE IF NOT EXISTS queue_messages (
+              id BIGSERIAL PRIMARY KEY,
+              queue_name VARCHAR NOT NULL,
+              body JSONB NOT NULL,
+              claimed_at TIMESTAMPTZ,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );"
+
       # Runs the root `test` script: builds libs/*, then runs jest across
       # gateway, api, eval-service, and every lib — see package.json.
       - name: Run tests
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/llm_sentinel_test
         run: npm test
 
   docker-build:
