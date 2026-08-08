@@ -1,0 +1,202 @@
+name: Rotate free Render Postgres
+
+# Render's free Postgres tier expires 30 days after creation, unconditionally
+# (unlike free web services, which only sleep on inactivity — nothing about
+# "keeping it warm" prevents this). Rather than pay to avoid that, this
+# workflow creates a fresh free instance every 25 days (a 5-day safety
+# margin), migrates + seeds it, repoints api/gateway/eval-service at it, and
+# only deletes the old instance after confirming the new one is actually
+# serving traffic. If anything fails partway, it stops and leaves both the
+# old (still-working) and new (partially-set-up) databases in place rather
+# than risk losing data — see the README's "Keeping the free deploy alive"
+# section for the full design and the one-time setup this needs.
+#
+# Manual run: Actions tab → this workflow → "Run workflow". Useful right
+# after setup to prove it works before waiting 25 days for the real thing.
+on:
+  schedule:
+    - cron: '0 6 */25 * *' # every 25 days at 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_OWNER_ID: ${{ secrets.RENDER_OWNER_ID }}
+      RENDER_API_SERVICE_ID: ${{ secrets.RENDER_API_SERVICE_ID }}
+      RENDER_GATEWAY_SERVICE_ID: ${{ secrets.RENDER_GATEWAY_SERVICE_ID }}
+      RENDER_EVAL_SERVICE_SERVICE_ID: ${{ secrets.RENDER_EVAL_SERVICE_SERVICE_ID }}
+      JWT_SECRET: ${{ secrets.RENDER_JWT_SECRET }}
+      GEMINI_API_KEY: ${{ secrets.RENDER_GEMINI_API_KEY }}
+      API_PUBLIC_URL: ${{ secrets.RENDER_API_PUBLIC_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create new free Postgres instance
+        id: create_db
+        run: |
+          set -euo pipefail
+          name="llm-sentinel-postgres-$(date +%Y%m%d-%H%M%S)"
+          resp=$(curl -sS -X POST https://api.render.com/v1/postgres \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"$name\",\"plan\":\"free\",\"ownerId\":\"$RENDER_OWNER_ID\",\"version\":\"16\",\"region\":\"oregon\"}")
+          id=$(echo "$resp" | node -pe 'JSON.parse(require("fs").readFileSync(0)).id')
+          if [ -z "$id" ] || [ "$id" = "undefined" ]; then
+            echo "::error::Postgres creation failed. Response: $resp"
+            exit 1
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Created $name ($id)"
+
+      - name: Wait for new Postgres to become available
+        run: |
+          set -euo pipefail
+          id="${{ steps.create_db.outputs.id }}"
+          for i in $(seq 1 60); do
+            status=$(curl -sS https://api.render.com/v1/postgres/$id \
+              -H "Authorization: Bearer $RENDER_API_KEY" | node -pe 'JSON.parse(require("fs").readFileSync(0)).status')
+            echo "status: $status (attempt $i/60)"
+            if [ "$status" = "available" ]; then exit 0; fi
+            sleep 10
+          done
+          echo "::error::Postgres never reached 'available' status — new instance ($id) was created but is unusable. Old database was NOT touched; delete the orphaned new instance manually from the Render dashboard."
+          exit 1
+
+      - name: Get new Postgres connection string
+        id: conn
+        run: |
+          set -euo pipefail
+          id="${{ steps.create_db.outputs.id }}"
+          resp=$(curl -sS https://api.render.com/v1/postgres/$id/connection-info \
+            -H "Authorization: Bearer $RENDER_API_KEY")
+          url=$(echo "$resp" | node -pe 'JSON.parse(require("fs").readFileSync(0)).externalConnectionString')
+          if [ -z "$url" ] || [ "$url" = "undefined" ]; then
+            echo "::error::Could not read connection string. Old database was NOT touched; delete the orphaned new instance ($id) manually."
+            exit 1
+          fi
+          # Masked so it never appears in logs, per GitHub Actions secret masking.
+          echo "::add-mask::$url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Build shared libs
+        run: npm run build:libs
+
+      - name: Run migrations against the new database
+        env:
+          DATABASE_URL: ${{ steps.conn.outputs.url }}?sslmode=require
+        run: npm run migration:run -w api
+
+      - name: Seed demo data into the new database
+        env:
+          DATABASE_URL: ${{ steps.conn.outputs.url }}?sslmode=require
+        run: npm run seed -w api
+
+      # From here on, every Render service update targets one env var by
+      # name (PUT /env-vars/{key}) rather than the bulk PUT /env-vars
+      # endpoint, which replaces the ENTIRE env var list — using it here
+      # would silently delete JWT_SECRET, GEMINI_API_KEY, etc. on every
+      # rotation.
+      - name: Point api at the new database and redeploy
+        run: |
+          set -euo pipefail
+          curl -sS -f -X PUT "https://api.render.com/v1/services/$RENDER_API_SERVICE_ID/env-vars/DATABASE_URL" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"value\":\"${{ steps.conn.outputs.url }}?sslmode=require\"}"
+          curl -sS -f -X POST "https://api.render.com/v1/services/$RENDER_API_SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY"
+
+      - name: Wait for api to come back up on the new database
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            # 401 is the expected response from this auth-gated endpoint —
+            # it proves the process is up and can reach its (new) database
+            # without crashing, which is what actually matters here.
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "$API_PUBLIC_URL/api/dashboard/overview" || true)
+            echo "api status: $code (attempt $i/30)"
+            if [ "$code" = "401" ]; then exit 0; fi
+            sleep 15
+          done
+          echo "::error::api did not come back up on the new database. Old database was NOT touched — api may currently be pointed at a broken DATABASE_URL though. Check the Render dashboard for api's deploy logs and roll back its DATABASE_URL env var to the old connection string manually if needed."
+          exit 1
+
+      - name: Point gateway at the new database and redeploy
+        run: |
+          set -euo pipefail
+          curl -sS -f -X PUT "https://api.render.com/v1/services/$RENDER_GATEWAY_SERVICE_ID/env-vars/DATABASE_URL" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"value\":\"${{ steps.conn.outputs.url }}?sslmode=require\"}"
+          curl -sS -f -X POST "https://api.render.com/v1/services/$RENDER_GATEWAY_SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY"
+
+      - name: Point eval-service at the new database and redeploy
+        run: |
+          set -euo pipefail
+          curl -sS -f -X PUT "https://api.render.com/v1/services/$RENDER_EVAL_SERVICE_SERVICE_ID/env-vars/DATABASE_URL" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"value\":\"${{ steps.conn.outputs.url }}?sslmode=require\"}"
+          curl -sS -f -X POST "https://api.render.com/v1/services/$RENDER_EVAL_SERVICE_SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY"
+
+      # gateway and eval-service have no unauthenticated/reliable HTTP health
+      # signal worth polling the same way api's was (gateway's proxy route
+      # needs a real JWT + provider call; eval-service's root route says
+      # nothing about its DB connection) — api's health check above is the
+      # one that actually proves the new database is reachable and correct,
+      # so it's treated as sufficient signal for the rotation as a whole.
+      # Give the other two a fixed grace period to finish deploying before
+      # moving on.
+      - name: Grace period for gateway/eval-service deploys to finish
+        run: sleep 90
+
+      # No state is persisted between runs (GITHUB_TOKEN can't write repo
+      # Actions variables, and adding a broader-scoped PAT just to remember
+      # one ID isn't worth it) — instead, every llm-sentinel-postgres-*
+      # instance owned by this account is listed and anything that isn't the
+      # one just created and verified above gets deleted. Safe because this
+      # workflow is the only thing that ever creates instances matching that
+      # name pattern.
+      - name: Delete old Postgres instance(s)
+        run: |
+          set -euo pipefail
+          new_id="${{ steps.create_db.outputs.id }}"
+          # Deliberately not using the API's `name` filter — its match
+          # semantics (exact vs. prefix) aren't documented, so filtering is
+          # done client-side below instead, against the full list for this
+          # account.
+          resp=$(curl -sS "https://api.render.com/v1/postgres?ownerId=$RENDER_OWNER_ID&limit=100" \
+            -H "Authorization: Bearer $RENDER_API_KEY")
+          old_ids=$(echo "$resp" | node -pe '
+            JSON.parse(require("fs").readFileSync(0))
+              .map(item => item.postgres)
+              .filter(db => db.name.startsWith("llm-sentinel-postgres") && db.id !== process.argv[1])
+              .map(db => db.id)
+              .join("\n")
+          ' "$new_id")
+          if [ -z "$old_ids" ]; then
+            echo "No other llm-sentinel-postgres-* instances found — nothing to delete (first run)."
+            exit 0
+          fi
+          echo "$old_ids" | while read -r old_id; do
+            [ -z "$old_id" ] && continue
+            echo "Deleting old instance $old_id"
+            curl -sS -f -X DELETE "https://api.render.com/v1/postgres/$old_id" \
+              -H "Authorization: Bearer $RENDER_API_KEY"
+          done

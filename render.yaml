@@ -22,16 +22,18 @@
 # monorepo) — see the comment at the top of each Dockerfile. Render's
 # `dockerContext: .` + `dockerfilePath` mirrors docker-compose.yml exactly.
 #
-# Free-tier caveats (see README): free Postgres expires after 30 days unless
-# upgraded; free web services spin down after 15 min idle and take ~30-60s to
-# wake on the next request — expect a cold-start delay on first load after
-# a period of inactivity.
-
-databases:
-  - name: llm-sentinel-postgres
-    plan: free
-    databaseName: llm_sentinel
-    user: llm_sentinel
+# Free-tier caveats (see README): free Postgres expires after 30 days
+# unless upgraded. Rather than pay or let the deployed demo go dark, Postgres
+# here is NOT blueprint-managed — .github/workflows/rotate-postgres.yml
+# creates a fresh free instance and re-points DATABASE_URL (via sync: false
+# below) roughly every 25 days, before the old one expires, then deletes the
+# old one only after confirming the new one is live. See that workflow and
+# the README's "Keeping the free deploy alive" section for the full design.
+# This is also why DATABASE_URL isn't `fromDatabase` here — a `databases:`
+# block would fight the rotation script for ownership of that value on every
+# blueprint sync. Free web services spin down after 15 min idle and take
+# ~30-60s to wake on the next request — expect a cold-start delay on first
+# load after a period of inactivity.
 
 services:
   - type: web
@@ -47,9 +49,7 @@ services:
     # TCP-port check, which is sufficient here.
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: llm-sentinel-postgres
-          property: connectionString
+        sync: false # set by .github/workflows/rotate-postgres.yml — see the note above databases used to sit here
       - key: JWT_SECRET
         generateValue: true
 
@@ -61,9 +61,7 @@ services:
     plan: free
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: llm-sentinel-postgres
-          property: connectionString
+        sync: false # set by .github/workflows/rotate-postgres.yml
       - key: JWT_SECRET
         sync: false # set manually to the exact same value as llm-sentinel-api's JWT_SECRET — see README
       - key: QUEUE_BACKEND
@@ -93,9 +91,7 @@ services:
     # endpoint for it to do its job.
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: llm-sentinel-postgres
-          property: connectionString
+        sync: false # set by .github/workflows/rotate-postgres.yml
       - key: JWT_SECRET
         sync: false # must match llm-sentinel-api and llm-sentinel-gateway exactly
       - key: QUEUE_BACKEND
