@@ -1,0 +1,130 @@
+# Render Blueprint — deploys the full stack from one file.
+# https://render.com/docs/blueprint-spec
+#
+# Topology (see README.md's "Deploying to Render" section for the full walkthrough):
+#   - postgres, redis (keyvalue)   managed data stores (Render free tier)
+#   - api, gateway                  public Docker web services
+#   - eval-service                  background worker (no public port — matches local setup)
+#   - dashboard                     static site (Vite build), talks to `api` over HTTPS + WSS
+#
+# All four app Dockerfiles build from the repo root context (npm workspaces
+# monorepo) — see the comment at the top of each Dockerfile. Render's
+# `dockerContext: .` + `dockerfilePath` mirrors docker-compose.yml exactly.
+#
+# Free-tier caveats (see README): free Postgres expires after 30 days unless
+# upgraded; free web services spin down after 15 min idle and take ~30-60s to
+# wake on the next request — expect a cold-start delay on first load after
+# a period of inactivity.
+
+databases:
+  - name: llm-sentinel-postgres
+    plan: free
+    databaseName: llm_sentinel
+    user: llm_sentinel
+
+services:
+  - type: keyvalue
+    name: llm-sentinel-redis
+    plan: free
+    ipAllowList: []
+
+  - type: web
+    name: llm-sentinel-api
+    runtime: docker
+    dockerContext: .
+    dockerfilePath: ./api/Dockerfile
+    plan: free
+    # No unauthenticated GET route exists anywhere in `api` to use as a
+    # healthCheckPath (every real endpoint requires a JWT; the boilerplate
+    # root AppController route is dead code — never registered in
+    # AppModule). Omitting healthCheckPath falls back to Render's default
+    # TCP-port check, which is sufficient here.
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: llm-sentinel-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: llm-sentinel-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+
+  - type: web
+    name: llm-sentinel-gateway
+    runtime: docker
+    dockerContext: .
+    dockerfilePath: ./gateway/Dockerfile
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: llm-sentinel-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: llm-sentinel-redis
+          property: connectionString
+      - key: JWT_SECRET
+        sync: false # set manually to the exact same value as llm-sentinel-api's JWT_SECRET — see README
+      - key: QUEUE_BACKEND
+        value: postgres # gateway and eval-service are separate Render machines with no shared disk — the
+                         # local-file queue (used by default in docker-compose/local dev) can't cross that
+                         # gap, so this deploy uses the Postgres-backed queue instead. See libs/queue/src/postgres-queue.ts.
+      - key: GEMINI_API_KEY
+        sync: false # set manually — https://aistudio.google.com/apikey
+      - key: API_SERVICE_URL
+        fromService:
+          type: web
+          name: llm-sentinel-api
+          property: hostport
+
+  - type: worker
+    name: llm-sentinel-eval-service
+    runtime: docker
+    dockerContext: .
+    dockerfilePath: ./eval-service/Dockerfile
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: llm-sentinel-postgres
+          property: connectionString
+      - key: JWT_SECRET
+        sync: false # must match llm-sentinel-api and llm-sentinel-gateway exactly
+      - key: QUEUE_BACKEND
+        value: postgres # must match llm-sentinel-gateway's setting — same reasoning
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: API_SERVICE_URL
+        fromService:
+          type: web
+          name: llm-sentinel-api
+          property: hostport
+
+  - type: web
+    name: llm-sentinel-dashboard
+    runtime: static
+    buildCommand: >-
+      npm ci &&
+      npm run build:libs &&
+      npm run build -w dashboard
+    staticPublishPath: ./dashboard/dist
+    envVars:
+      # Render's Blueprint spec has no way to reference another service's
+      # PUBLIC onrender.com URL (fromService only exposes the private-network
+      # host:port, which a browser can't reach) — VITE_API_URL is also baked
+      # into the static JS bundle at build time, not read at runtime, so it
+      # has to be a real value here, not resolved dynamically. Set this to
+      # llm-sentinel-api's actual public URL after its first deploy (visible
+      # on its Render dashboard page), then trigger a manual redeploy of this
+      # static site so the build picks it up. See README's Render walkthrough.
+      - key: VITE_API_URL
+        value: https://llm-sentinel-api.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html # React Router client-side routing — see dashboard/nginx.conf for the equivalent local/Docker rule
