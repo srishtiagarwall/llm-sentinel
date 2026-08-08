@@ -44,72 +44,96 @@ infra/
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Gateway / API | NestJS (TypeScript) |
-| Async Workers | NestJS + AWS SQS consumers |
-| LLM Evaluation | Google Gemini 2.5 Flash (as-Judge) |
-| PII Detection | Microsoft Presidio |
-| Queue | AWS SQS |
-| Database | PostgreSQL |
-| Cache / Rate Limiting | Redis |
-| Blob Storage | AWS S3 |
-| IaC | Pulumi |
-| Containerization | Docker |
-| Report Generation | PDF + JSON |
+| Layer | Technology | Notes |
+|---|---|---|
+| Gateway / API | NestJS (TypeScript) | |
+| Async Workers | NestJS SQS-shaped consumers | Local filesystem queue by default (`USE_LOCAL_QUEUE=true`); real AWS SQS is a drop-in swap, not required to run this |
+| LLM Evaluation | Google Gemini 2.5 Flash (as-Judge) | See `libs/evaluators/eval-harness/RESULTS.md` for judge-vs-human validation |
+| PII Detection | Regex-based pattern matching | See [ADR 0003](docs/adr/0003-guardrail-limitations.md) for known bypasses — this is not Presidio/NER-based |
+| Database | PostgreSQL | |
+| Cache / Rate Limiting | Redis | |
+| Blob Storage | — | Raw prompt/response blobs aren't persisted to S3 in the current implementation; only hashes are stored on the trace |
+| Containerization | Docker (all 4 services) | |
+| IaC | — | `infra/pulumi/` is a placeholder, not implemented |
+| Report Generation | PDF + JSON | |
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js 22+
-- Docker & Docker Compose
-- AWS account (for SQS + S3)
+- Docker Desktop (or any Docker + Compose v2 setup)
+- A [Gemini API key](https://aistudio.google.com/apikey) — free tier is enough for local use, needed for the guardrail eval pipeline and the judge-validation harness
 
-### Run Locally
+**No AWS account needed.** The queue between the gateway and eval-service defaults to a local filesystem queue (`USE_LOCAL_QUEUE=true`) — real SQS is only used if you explicitly configure `AWS_SQS_TRACE_QUEUE_URL`. S3/Pulumi in the tech stack table below describe where this project could go in a real deployment, not what the default local setup uses.
 
-This is an npm workspace monorepo — install once at the root, then run each service.
+### 1. Clone and configure
 
 ```bash
-# Clone the repo
 git clone https://github.com/srishtiagarwall/llm-sentinel.git
 cd llm-sentinel
 
-# Start infrastructure (PostgreSQL, Redis)
-docker-compose up -d postgres redis
-
-# Install all workspace dependencies
-npm install
-
-# Build shared libs (gateway/api/eval-service depend on these)
-npm run build:libs
-
-# Apply database migrations
-cd api && npm run migration:run && cd ..
-
-# Start each service in its own terminal
-cd gateway && npm run start:dev        # :3000
-cd api && npm run start:dev            # :3001
-cd eval-service && npm run start:dev
-cd dashboard && npm run dev            # :5173 — the React frontend
+# Each of these 4 apps needs its own .env — copy the examples and fill in
+# GEMINI_API_KEY and JWT_SECRET (JWT_SECRET must be identical across all of
+# gateway/api/eval-service — they validate the same tokens).
+cp gateway/.env.example gateway/.env
+cp api/.env.example api/.env
+cp eval-service/.env.example eval-service/.env
+cp dashboard/.env.example dashboard/.env
 ```
 
-Open the dashboard, register a tenant, and log in — `POST /auth/register` on `api` creates the tenant's first user.
+### 2. Start Postgres + Redis
 
-### Environment Variables
-
-Copy `.env.example` to `.env` in each app directory (`gateway`, `api`, `eval-service`, `dashboard`) and fill in your values. `JWT_SECRET` must match across `gateway`, `api`, and `eval-service` — they validate/sign the same tokens for cross-service calls.
-
-```env
-# gateway/.env
-PORT=3000
-DATABASE_URL=postgresql://postgres:postgres@localhost:5433/llm_sentinel
-REDIS_URL=redis://localhost:6379
-AWS_SQS_TRACE_QUEUE_URL=
-AWS_REGION=ap-south-1
-GEMINI_API_KEY=
-JWT_SECRET=
-API_SERVICE_URL=http://localhost:3001
+```bash
+docker compose up -d postgres redis
 ```
+
+Postgres listens on **5433** (not 5432) on the host — chosen to avoid colliding with a native Postgres install some machines already have on 5432. The `.env.example` files already point at 5433; if you're pointing at your own Postgres instead, adjust `DATABASE_URL` accordingly.
+
+### 3. Install, build, migrate, seed
+
+```bash
+npm install                              # installs every workspace at once (root-level)
+npm run build:libs                       # gateway/api/eval-service import these as workspace packages
+npm run migration:run -w api             # creates the traces/policies/users tables
+npm run seed -w api                      # optional but recommended — seeds ~60 demo traces + 3 policies for tenant "demo"
+```
+
+The first `migration:run` or `seed` call can take 20–30s before printing anything — that's `ts-node` compiling on a cold cache, not a hang.
+
+### 4. Run the four services
+
+Each needs its own terminal (or use a process manager of your choice):
+
+```bash
+npm run start:dev -w gateway       # :3000 — the OpenAI-compatible proxy
+npm run start:dev -w api           # :3001 — REST + WebSocket API for the dashboard
+npm run start:dev -w eval-service  # no HTTP port — consumes the local queue, runs Gemini-as-judge scoring
+npm run dev -w dashboard           # :5173 — the React dashboard
+```
+
+### 5. Log in
+
+Open **http://localhost:5173** and register a tenant (`POST /api/auth/register` on `api`, or use the dashboard's "Register" link) — this creates the tenant's first user and logs you in immediately. If you ran the seed script, you'll see it under tenant `demo`; register your own tenant name to see an empty dashboard instead, or create a user directly against `demo`:
+
+```bash
+curl -s -X POST http://localhost:3001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"YourPassword1!","tenantId":"demo"}'
+```
+
+### Alternative: Docker Compose, all four services
+
+Once your four `.env` files are in place, you can skip steps 3–4 and build/run everything as containers instead:
+
+```bash
+docker compose up -d --build
+```
+
+This builds all four Dockerfiles from the repo root (required — see the comment at the top of each `Dockerfile`, since this is an npm-workspaces monorepo and each service needs the root lockfile and `libs/*` to build). You'll still need to run migrations/seed against the containerized Postgres the first time (`npm run migration:run -w api`, `npm run seed -w api`, from the host, pointing at `localhost:5433`).
+
+### Demo: fallback + circuit breaker without a real outage
+
+Set `FORCE_PROVIDER_FAILURE=openai` (or `openai,gemini`) in `gateway/.env` and restart the gateway to simulate a provider outage without touching a real upstream — requests will fail over to the next provider in the chain, and after 3 consecutive failures that provider's circuit breaker trips OPEN. See [`gateway/src/proxy/circuit-breaker.service.ts`](gateway/src/proxy/circuit-breaker.service.ts). Unset it and restart to go back to normal.
 
 ## Reliability & Engineering Notes
 
