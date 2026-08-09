@@ -123,6 +123,12 @@ services:
       # static site so the build picks it up. See README's Render walkthrough.
       - key: VITE_API_URL
         value: https://llm-sentinel-api.onrender.com
+      # Same reasoning as VITE_API_URL above — set to llm-sentinel-gateway's
+      # actual public URL after its first deploy, then redeploy this static
+      # site. Powers the "Try it live" panel on the Traces page, which calls
+      # the gateway directly from the browser.
+      - key: VITE_GATEWAY_URL
+        value: https://llm-sentinel-gateway.onrender.com
     routes:
       - type: rewrite
         source: /*

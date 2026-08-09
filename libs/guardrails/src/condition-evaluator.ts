@@ -1,16 +1,21 @@
 // Minimal, safe DSL for policy conditions like:
 //   "pii_detected == true AND provider != 'internal'"
+//   "input_tokens > 2000"
+//   "pii_types contains 'SSN'"
 // No eval() — parsed and evaluated against a flat key/value context.
 
 export type ConditionContext = Record<string, string | number | boolean | null>;
 
+type Op = '==' | '!=' | '>' | '<' | '>=' | '<=' | 'contains';
+
 interface Clause {
   field: string;
-  op: '==' | '!=';
+  op: Op;
   value: string | number | boolean;
 }
 
-const CLAUSE_PATTERN = /(\w+)\s*(==|!=)\s*('[^']*'|"[^"]*"|true|false|-?\d+(?:\.\d+)?)/g;
+const CLAUSE_PATTERN =
+  /(\w+)\s*(==|!=|>=|<=|>|<|contains)\s*('[^']*'|"[^"]*"|true|false|-?\d+(?:\.\d+)?)/g;
 
 function parseValue(raw: string): string | number | boolean {
   if (raw === 'true') return true;
@@ -24,7 +29,7 @@ export function parseCondition(condition: string): Clause[] {
   const clauses: Clause[] = [];
   for (const match of condition.matchAll(CLAUSE_PATTERN)) {
     const [, field, op, rawValue] = match;
-    clauses.push({ field, op: op as '==' | '!=', value: parseValue(rawValue) });
+    clauses.push({ field, op: op as Op, value: parseValue(rawValue) });
   }
   return clauses;
 }
@@ -36,7 +41,25 @@ export function evaluateCondition(condition: string, ctx: ConditionContext): boo
 
   return clauses.every(({ field, op, value }) => {
     const actual = ctx[field];
-    const matches = actual === value;
-    return op === '==' ? matches : !matches;
+
+    switch (op) {
+      case '==':
+        return actual === value;
+      case '!=':
+        return actual !== value;
+      case 'contains':
+        return typeof actual === 'string' && typeof value === 'string'
+          ? actual.split(',').includes(value)
+          : false;
+      case '>':
+      case '<':
+      case '>=':
+      case '<=':
+        if (typeof actual !== 'number' || typeof value !== 'number') return false;
+        if (op === '>') return actual > value;
+        if (op === '<') return actual < value;
+        if (op === '>=') return actual >= value;
+        return actual <= value;
+    }
   });
 }

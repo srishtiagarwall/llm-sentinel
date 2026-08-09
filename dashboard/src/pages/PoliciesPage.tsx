@@ -2,9 +2,18 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { policiesApi, type Policy, type CreatePolicyInput, ApiError } from '../lib/api';
 import { Spinner, ErrorBanner, EmptyState } from '../components/Feedback';
 import { PageHeader } from '../components/PageHeader';
+import { PolicyTemplates } from '../components/PolicyTemplates';
 
 const CONDITION_EXAMPLE = "pii_detected == true AND provider != 'internal'";
-const CONDITION_FIELDS = ['pii_detected', 'injection_detected', 'provider', 'model', 'user_id'];
+const CONDITION_FIELDS = [
+  'pii_detected',
+  'pii_types',
+  'injection_detected',
+  'provider',
+  'model',
+  'user_id',
+  'input_tokens',
+];
 
 function fmtTime(iso: string): string {
   const d = new Date(iso);
@@ -13,7 +22,8 @@ function fmtTime(iso: string): string {
 
 function validateCondition(condition: string): string | null {
   if (!condition.trim()) return 'Condition is required.';
-  const CLAUSE_PATTERN = /(\w+)\s*(==|!=)\s*('[^']*'|"[^"]*"|true|false|-?\d+(?:\.\d+)?)/g;
+  const CLAUSE_PATTERN =
+    /(\w+)\s*(==|!=|>=|<=|>|<|contains)\s*('[^']*'|"[^"]*"|true|false|-?\d+(?:\.\d+)?)/g;
   const matches = [...condition.matchAll(CLAUSE_PATTERN)];
   if (matches.length === 0) {
     return `No valid clauses found. Use the form: field == value AND field != value (e.g. ${CONDITION_EXAMPLE})`;
@@ -110,6 +120,8 @@ export function PoliciesPage() {
       />
 
       {error && <ErrorBanner message={error} onRetry={load} />}
+
+      {!loading && <PolicyTemplates policies={policies} onChanged={setPolicies} />}
 
       <div className="panel panel--flush">
         {loading ? (
@@ -322,7 +334,9 @@ function PolicyFormModal({
               <span className="form-error">{conditionError}</span>
             ) : (
               <span className="form-hint">
-                Clauses are ANDed together, e.g. <code>{CONDITION_EXAMPLE}</code>. Available fields:{' '}
+                Clauses are ANDed together, e.g. <code>{CONDITION_EXAMPLE}</code>. Operators:{' '}
+                <code>==</code> <code>!=</code> <code>&gt;</code> <code>&lt;</code> <code>&gt;=</code>{' '}
+                <code>&lt;=</code> <code>contains</code>. Available fields:{' '}
                 {CONDITION_FIELDS.map((f) => (
                   <code key={f}>{f}</code>
                 ))}

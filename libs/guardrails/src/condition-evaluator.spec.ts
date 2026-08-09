@@ -59,6 +59,28 @@ describe('evaluateCondition', () => {
   it('fails closed on strict type mismatch (string "true" does not equal boolean true)', () => {
     expect(evaluateCondition('pii_detected == true', { pii_detected: 'true' as unknown as boolean })).toBe(false);
   });
+
+  it('evaluates numeric comparison operators', () => {
+    expect(evaluateCondition('input_tokens > 2000', { input_tokens: 2500 })).toBe(true);
+    expect(evaluateCondition('input_tokens > 2000', { input_tokens: 1000 })).toBe(false);
+    expect(evaluateCondition('input_tokens < 2000', { input_tokens: 1000 })).toBe(true);
+    expect(evaluateCondition('input_tokens >= 2000', { input_tokens: 2000 })).toBe(true);
+    expect(evaluateCondition('input_tokens <= 2000', { input_tokens: 2000 })).toBe(true);
+  });
+
+  it('fails closed on comparison operators against non-numeric context values', () => {
+    expect(evaluateCondition('provider > 5', { provider: 'openai' })).toBe(false);
+  });
+
+  it('evaluates "contains" against a comma-joined string field', () => {
+    expect(evaluateCondition("pii_types contains 'SSN'", { pii_types: 'EMAIL,SSN' })).toBe(true);
+    expect(evaluateCondition("pii_types contains 'SSN'", { pii_types: 'EMAIL' })).toBe(false);
+    expect(evaluateCondition("pii_types contains 'SSN'", { pii_types: '' })).toBe(false);
+  });
+
+  it('fails closed on "contains" against a non-string field', () => {
+    expect(evaluateCondition("pii_detected contains 'true'", { pii_detected: true })).toBe(false);
+  });
 });
 
 describe('parseCondition', () => {

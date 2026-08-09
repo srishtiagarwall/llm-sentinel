@@ -37,51 +37,80 @@ export function LoginPage() {
 
   return (
     <div className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit}>
-        <h1>LLM Sentinel</h1>
-        <p className="auth-subtitle">{mode === 'login' ? 'Sign in to your dashboard' : 'Create a new tenant'}</p>
+      <div className="auth-brand">
+        <div className="auth-brand__mark">
+          <span className="auth-brand__dot" />
+          LLM SENTINEL
+        </div>
+        <h1 className="auth-brand__title">Every request through your LLM, watched.</h1>
+        <p className="auth-brand__lede">
+          A transparent proxy in front of OpenAI, Gemini, and Claude — scanning for PII and prompt
+          injection before the call, scoring hallucination and toxicity after it, and writing a
+          tamper-evident audit trail the whole way through.
+        </p>
+        <ul className="auth-brand__points">
+          <li>
+            <span className="auth-brand__point-label">Guardrails</span>
+            PII and prompt-injection detection on every request, before it reaches the model.
+          </li>
+          <li>
+            <span className="auth-brand__point-label">Live traces</span>
+            Every call logged with guardrail flags, cost, latency, and eval scores in real time.
+          </li>
+          <li>
+            <span className="auth-brand__point-label">Compliance</span>
+            Hash-chained audit logs built for EU AI Act Article 12 reporting.
+          </li>
+        </ul>
+      </div>
 
-        {mode === 'register' && (
+      <div className="auth-panel">
+        <form className="auth-card" onSubmit={handleSubmit}>
+          <h1>LLM Sentinel</h1>
+          <p className="auth-subtitle">{mode === 'login' ? 'Sign in to your dashboard' : 'Create a new tenant'}</p>
+
+          {mode === 'register' && (
+            <label>
+              Tenant ID
+              <input value={tenantId} onChange={(e) => setTenantId(e.target.value)} required placeholder="acme-corp" />
+            </label>
+          )}
+
           <label>
-            Tenant ID
-            <input value={tenantId} onChange={(e) => setTenantId(e.target.value)} required placeholder="acme-corp" />
+            Email
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
           </label>
-        )}
 
-        <label>
-          Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-        </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            />
+          </label>
 
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-          />
-        </label>
+          {error && <div className="auth-error">{error}</div>}
 
-        {error && <div className="auth-error">{error}</div>}
+          <button type="submit" disabled={submitting}>
+            {submitting ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
+          </button>
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
-        </button>
-
-        <button
-          type="button"
-          className="auth-switch"
-          onClick={() => {
-            setMode(mode === 'login' ? 'register' : 'login');
-            setError(null);
-          }}
-        >
-          {mode === 'login' ? "Don't have an account? Register" : 'Already have an account? Sign in'}
-        </button>
-      </form>
+          <button
+            type="button"
+            className="auth-switch"
+            onClick={() => {
+              setMode(mode === 'login' ? 'register' : 'login');
+              setError(null);
+            }}
+          >
+            {mode === 'login' ? "Don't have an account? Register" : 'Already have an account? Sign in'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

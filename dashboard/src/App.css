@@ -52,6 +52,98 @@ select:focus {
 
 .auth-page {
   min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 900px) {
+  .auth-page {
+    grid-template-columns: 1.1fr 1fr;
+  }
+}
+
+.auth-brand {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  padding: 64px;
+  background:
+    radial-gradient(900px 500px at 15% 0%, var(--signal-bg), transparent 60%),
+    var(--rail-bg);
+  color: var(--rail-text);
+  border-right: 1px solid var(--rail-line);
+}
+
+@media (min-width: 900px) {
+  .auth-brand {
+    display: flex;
+  }
+}
+
+.auth-brand__mark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--rail-text-h);
+}
+
+.auth-brand__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rail-active-text);
+  box-shadow: 0 0 0 3px rgba(61, 220, 132, 0.15);
+  flex-shrink: 0;
+}
+
+.auth-brand__title {
+  max-width: 480px;
+  font-size: 34px;
+  line-height: 1.2;
+  color: var(--rail-text-h);
+  margin: 0;
+}
+
+.auth-brand__lede {
+  max-width: 460px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--rail-text);
+}
+
+.auth-brand__points {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 460px;
+}
+
+.auth-brand__points li {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--rail-text);
+  padding-left: 16px;
+  border-left: 2px solid var(--rail-line);
+}
+
+.auth-brand__point-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rail-active-text);
+  margin-bottom: 2px;
+}
+
+.auth-panel {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1068,6 +1160,137 @@ select:focus {
   font-size: 11px;
   padding: 1px 5px;
   margin-right: 2px;
+}
+
+/* ============================================================
+   Try it live
+   ============================================================ */
+
+.try-it-live {
+  margin-bottom: 16px;
+}
+
+.try-it-live__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.try-it-live__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.try-it-live__add {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--ink-sunken);
+  color: var(--text-h);
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.try-it-live__add:hover:not(:disabled) {
+  border-color: var(--signal-border);
+  color: var(--signal);
+}
+
+.try-it-live__add:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.try-it-live__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.try-it-live__label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-h);
+}
+
+.try-it-live__prompt {
+  font-size: 12px;
+  margin: 2px 0;
+  max-width: 100%;
+}
+
+.try-it-live__result {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--ink-sunken);
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.try-it-live__result--error {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+/* ============================================================
+   Policy templates
+   ============================================================ */
+
+.policy-templates {
+  margin-bottom: 16px;
+}
+
+.policy-templates__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  padding: 12px 16px 16px;
+}
+
+.policy-templates__card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--ink-sunken);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.policy-templates__card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.policy-templates__card-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-h);
+}
+
+.policy-templates__card-description {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.policy-templates__condition {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 /* ============================================================

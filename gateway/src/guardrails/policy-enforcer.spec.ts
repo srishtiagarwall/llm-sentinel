@@ -29,6 +29,7 @@ describe('PolicyEnforcer', () => {
       model: 'gpt-4o',
       pii: { detected: true, types: ['EMAIL'], redacted: '' },
       injection: { detected: false, pattern: null },
+      inputTokens: 0,
     });
     expect(result.allowed).toBe(false);
     expect(result.violations).toContain('PII_TO_EXTERNAL_PROVIDER:EMAIL');
@@ -42,6 +43,7 @@ describe('PolicyEnforcer', () => {
       model: 'gpt-4o',
       pii: { detected: true, types: [], redacted: '' },
       injection: { detected: false, pattern: null },
+      inputTokens: 0,
     });
     expect(result.violations).toContain('POLICY:block-pii-external');
     expect(result.alerts).toContain('POLICY:block-pii-external');
@@ -55,6 +57,7 @@ describe('PolicyEnforcer', () => {
       model: 'gpt-4o',
       pii: { detected: false, types: [], redacted: '' },
       injection: { detected: false, pattern: null },
+      inputTokens: 0,
     });
     expect(result.violations).not.toContain('POLICY:block-pii-external');
   });
@@ -69,6 +72,7 @@ describe('PolicyEnforcer', () => {
       model: 'gpt-4o',
       pii: { detected: false, types: [], redacted: '' },
       injection: { detected: false, pattern: null },
+      inputTokens: 0,
     });
     expect(result.allowed).toBe(true);
     expect(result.alerts).toContain('POLICY:block-pii-external');
@@ -82,6 +86,7 @@ describe('PolicyEnforcer', () => {
       model: 'gpt-4o',
       pii: { detected: false, types: [], redacted: '' },
       injection: { detected: true, pattern: 'role_override' },
+      inputTokens: 0,
     });
     expect(result.allowed).toBe(false);
     expect(result.violations).toContain('PROMPT_INJECTION:role_override');
@@ -95,6 +100,7 @@ describe('PolicyEnforcer', () => {
       model: 'gpt-4o',
       pii: { detected: true, types: ['EMAIL'], redacted: '' },
       injection: { detected: false, pattern: null },
+      inputTokens: 0,
     });
     expect(result.allowed).toBe(true);
     expect(result.violations).toEqual([]);
@@ -109,6 +115,7 @@ describe('PolicyEnforcer', () => {
       userId: 'user-2',
       pii: { detected: true, types: [], redacted: '' },
       injection: { detected: false, pattern: null },
+      inputTokens: 0,
     });
     expect(result.violations).not.toContain('POLICY:block-pii-external');
   });
@@ -122,6 +129,7 @@ describe('PolicyEnforcer', () => {
       userId: 'user-1',
       pii: { detected: true, types: [], redacted: '' },
       injection: { detected: false, pattern: null },
+      inputTokens: 0,
     });
     expect(result.violations).toContain('POLICY:block-pii-external');
   });
@@ -134,6 +142,7 @@ describe('PolicyEnforcer', () => {
       model: 'gpt-4o',
       pii: { detected: true, types: [], redacted: '' },
       injection: { detected: false, pattern: null },
+      inputTokens: 0,
     });
     expect(result.violations).toContain('POLICY:block-pii-external');
     expect(result.alerts).not.toContain('POLICY:block-pii-external');
@@ -147,6 +156,7 @@ describe('PolicyEnforcer', () => {
       model: 'gpt-4o',
       pii: { detected: true, types: ['EMAIL'], redacted: '' },
       injection: { detected: false, pattern: null },
+      inputTokens: 0,
     });
     expect(result.violations).toEqual(
       expect.arrayContaining(['PII_TO_EXTERNAL_PROVIDER:EMAIL', 'POLICY:extra-block']),
@@ -168,9 +178,40 @@ describe('PolicyEnforcer', () => {
       // no PII/injection here — isolating the CRUD-policy interaction from the baseline guards
       pii: { detected: false, types: [], redacted: '' },
       injection: { detected: false, pattern: null },
+      inputTokens: 0,
     });
     expect(result.violations).toEqual(['POLICY:blocker']);
     expect(result.alerts).toEqual(['POLICY:alerter']);
     expect(result.allowed).toBe(false);
+  });
+
+  it('applies a CRUD policy keyed on input_tokens', async () => {
+    const enforcer = new PolicyEnforcer(
+      makeCache([makePolicy({ name: 'large-prompt', condition: 'input_tokens > 2000' })]),
+    );
+    const result = await enforcer.enforce({
+      tenantId: 't1',
+      provider: 'openai',
+      model: 'gpt-4o',
+      pii: { detected: false, types: [], redacted: '' },
+      injection: { detected: false, pattern: null },
+      inputTokens: 2500,
+    });
+    expect(result.violations).toContain('POLICY:large-prompt');
+  });
+
+  it('applies a CRUD policy keyed on pii_types via "contains"', async () => {
+    const enforcer = new PolicyEnforcer(
+      makeCache([makePolicy({ name: 'ssn-block', condition: "pii_types contains 'SSN'" })]),
+    );
+    const result = await enforcer.enforce({
+      tenantId: 't1',
+      provider: 'internal',
+      model: 'gpt-4o',
+      pii: { detected: true, types: ['SSN'], redacted: '' },
+      injection: { detected: false, pattern: null },
+      inputTokens: 0,
+    });
+    expect(result.violations).toContain('POLICY:ssn-block');
   });
 });

@@ -44,6 +44,8 @@ export class ProxyService {
     // --- PRE-LLM GUARDRAIL PIPELINE ---
     const pii = scanForPii(promptText);
     const injection = scanForInjection(promptText);
+    const promptHash = crypto.createHash('sha256').update(promptText).digest('hex');
+    const inputTokens = estimateTokens(promptText);
     const policy = await this.policyEnforcer.enforce({
       tenantId: meta.tenantId,
       provider: meta.provider,
@@ -51,10 +53,8 @@ export class ProxyService {
       userId: meta.userId,
       pii,
       injection,
+      inputTokens,
     });
-
-    const promptHash = crypto.createHash('sha256').update(promptText).digest('hex');
-    const inputTokens = estimateTokens(promptText);
 
     if (!policy.allowed) {
       // Save blocked trace and throw

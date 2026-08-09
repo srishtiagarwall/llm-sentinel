@@ -2,6 +2,10 @@
 // REST route except the /dashboard WebSocket namespace, which is unprefixed.
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 const API_URL = `${API_BASE}/api`;
+// The gateway is a separate service from `api` (see gateway/.env, PORT=3000)
+// — it's the OpenAI-compatible proxy that guardrails/scores/logs traffic,
+// not part of the `api` REST surface.
+const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL ?? 'http://localhost:3000';
 const TOKEN_KEY = 'llm-sentinel-token';
 
 export function getToken(): string | null {
@@ -286,4 +290,37 @@ export const auditApi = {
     ),
 };
 
-export { API_URL, API_BASE };
+// --- Gateway ("Try it live") ---
+
+export interface TryItResult {
+  content: string;
+}
+
+async function gatewayRequest(prompt: string, provider: 'gemini' | 'openai'): Promise<TryItResult> {
+  const token = getToken();
+  const res = await fetch(`${GATEWAY_URL}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'X-Provider': provider,
+    },
+    body: JSON.stringify({
+      model: provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const reasons = Array.isArray(body?.reasons) ? `: ${body.reasons.join(', ')}` : '';
+    throw new ApiError(res.status, body.blocked ? `Blocked by guardrails${reasons}` : body.message ?? `Request failed with status ${res.status}`);
+  }
+  return { content: body?.choices?.[0]?.message?.content ?? '' };
+}
+
+export const gatewayApi = {
+  tryPrompt: (prompt: string, provider: 'gemini' | 'openai' = 'gemini') => gatewayRequest(prompt, provider),
+};
+
+export { API_URL, API_BASE, GATEWAY_URL };

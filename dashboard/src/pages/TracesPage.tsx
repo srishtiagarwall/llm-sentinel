@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { tracesApi, type TraceDetail, type TraceListParams, ApiError } from '../lib/api';
 import { Spinner, ErrorBanner, EmptyState } from '../components/Feedback';
 import { PageHeader } from '../components/PageHeader';
+import { TryItLive } from '../components/TryItLive';
 
 const PAGE_SIZE = 25;
 
@@ -95,6 +96,8 @@ export function TracesPage() {
   return (
     <div className="page">
       <PageHeader title="Traces" subtitle="Every request that passed through the gateway, with guardrail and scoring detail." />
+
+      <TryItLive onSent={() => { setPage(1); load(); }} />
 
       <form className="filter-bar" onSubmit={applyFilters}>
         <label className="filter-field">

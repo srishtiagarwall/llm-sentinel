@@ -14,6 +14,7 @@ export interface PolicyContext {
   userId?: string;
   pii: PiiScanResult;
   injection: InjectionScanResult;
+  inputTokens: number;
 }
 
 export interface PolicyResult {
@@ -42,10 +43,12 @@ export class PolicyEnforcer {
     const policies = await this.policyCache.getEnabledPolicies(ctx.tenantId);
     const conditionCtx: ConditionContext = {
       pii_detected: ctx.pii.detected,
+      pii_types: ctx.pii.types.join(','),
       injection_detected: ctx.injection.detected,
       provider: ctx.provider,
       model: ctx.model,
       user_id: ctx.userId ?? null,
+      input_tokens: ctx.inputTokens,
     };
 
     for (const policy of policies) {
