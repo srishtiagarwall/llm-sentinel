@@ -66,13 +66,17 @@ select:focus {
   display: none;
   flex-direction: column;
   justify-content: center;
-  gap: 20px;
+  gap: 22px;
   padding: 64px;
-  background:
-    radial-gradient(900px 500px at 15% 0%, var(--signal-bg), transparent 60%),
-    var(--rail-bg);
+  background: var(--rail-bg);
+  background-image:
+    radial-gradient(900px 500px at 10% 0%, var(--signal-bg), transparent 60%),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: auto, 42px 42px, 42px 42px;
   color: var(--rail-text);
   border-right: 1px solid var(--rail-line);
+  position: relative;
 }
 
 @media (min-width: 900px) {
@@ -102,35 +106,51 @@ select:focus {
 
 .auth-brand__title {
   max-width: 480px;
-  font-size: 34px;
-  line-height: 1.2;
+  font-size: 38px;
+  line-height: 1.18;
   color: var(--rail-text-h);
-  margin: 0;
+  margin: 4px 0 0;
 }
 
 .auth-brand__lede {
-  max-width: 460px;
+  max-width: 440px;
   font-size: 14.5px;
   line-height: 1.6;
   color: var(--rail-text);
+  margin-top: 4px;
 }
 
 .auth-brand__points {
   list-style: none;
-  margin: 12px 0 0;
+  margin: 4px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   max-width: 460px;
 }
 
 .auth-brand__points li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   font-size: 13.5px;
   line-height: 1.5;
   color: var(--rail-text);
-  padding-left: 16px;
-  border-left: 2px solid var(--rail-line);
+}
+
+.auth-brand__point-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  border-radius: 6px;
+  background: var(--rail-active-bg);
+  color: var(--rail-active-text);
+  margin-top: 1px;
 }
 
 .auth-brand__point-label {

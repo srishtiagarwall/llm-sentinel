@@ -44,22 +44,31 @@ export function LoginPage() {
         </div>
         <h1 className="auth-brand__title">Every request through your LLM, watched.</h1>
         <p className="auth-brand__lede">
-          A transparent proxy in front of OpenAI, Gemini, and Claude — scanning for PII and prompt
-          injection before the call, scoring hallucination and toxicity after it, and writing a
-          tamper-evident audit trail the whole way through.
+          A transparent proxy in front of your LLM provider, scanning for PII and prompt injection
+          before the call, scoring hallucination and toxicity after it, and writing a tamper-evident
+          audit trail the whole way through.
         </p>
         <ul className="auth-brand__points">
           <li>
-            <span className="auth-brand__point-label">Guardrails</span>
-            PII and prompt-injection detection on every request, before it reaches the model.
+            <span className="auth-brand__point-icon" aria-hidden="true">◆</span>
+            <span>
+              <span className="auth-brand__point-label">Guardrails</span>
+              PII and prompt-injection detection on every request, before it reaches the model.
+            </span>
           </li>
           <li>
-            <span className="auth-brand__point-label">Live traces</span>
-            Every call logged with guardrail flags, cost, latency, and eval scores in real time.
+            <span className="auth-brand__point-icon" aria-hidden="true">◆</span>
+            <span>
+              <span className="auth-brand__point-label">Live traces</span>
+              Every call logged with guardrail flags, cost, latency, and eval scores in real time.
+            </span>
           </li>
           <li>
-            <span className="auth-brand__point-label">Compliance</span>
-            Hash-chained audit logs built for EU AI Act Article 12 reporting.
+            <span className="auth-brand__point-icon" aria-hidden="true">◆</span>
+            <span>
+              <span className="auth-brand__point-label">Compliance</span>
+              Hash-chained audit logs built for EU AI Act Article 12 reporting.
+            </span>
           </li>
         </ul>
       </div>
