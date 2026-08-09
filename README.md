@@ -146,18 +146,18 @@ Set `FORCE_PROVIDER_FAILURE=openai` (or `openai,gemini`) in `gateway/.env` and r
 5. **Copy `llm-sentinel-api`'s generated `JWT_SECRET`** (Render dashboard → that service → Environment) and paste it as the manual value for the same key on both `llm-sentinel-gateway` and `llm-sentinel-eval-service`. All three must match exactly — they validate/sign the same tokens.
 6. **Set `GEMINI_API_KEY`** (a free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey)) on both `llm-sentinel-gateway` and `llm-sentinel-eval-service`.
 7. **Fix `VITE_API_URL`** on `llm-sentinel-dashboard`: once `llm-sentinel-api` has deployed, copy its real public URL from the Render dashboard (top of its service page) and set it as `VITE_API_URL`'s value, replacing the placeholder in `render.yaml`. This is baked into the dashboard's JS bundle at build time, so after changing it you need to trigger a manual redeploy of `llm-sentinel-dashboard` for the new value to take effect.
-8. **Run migrations + seed once**, from your own machine, pointing at the deployed Postgres's *external* connection string (same dashboard page as step 3, different URL):
+8. **Run migrations once**, from your own machine, pointing at the deployed Postgres's *external* connection string (same dashboard page as step 3, different URL):
    ```bash
    DATABASE_URL="<external connection string from Render>?sslmode=require" npm run migration:run -w api
-   DATABASE_URL="<same>" npm run seed -w api
    ```
-9. Open `llm-sentinel-dashboard`'s URL and register a tenant, or log in against the seeded `demo` tenant (see [Log in](#5-log-in) above for the register-a-user curl, pointed at the deployed `api` URL instead of localhost).
+   The deployed instance is deliberately left unseeded — no fake traces or policies — so it starts genuinely empty. This means anyone evaluating the deploy can register their own tenant and see real traces appear as they actually send requests through the gateway, rather than looking at pre-populated demo data.
+9. Open `llm-sentinel-dashboard`'s URL and register a tenant (see [Log in](#5-log-in) above for the register-a-user curl, pointed at the deployed `api` URL instead of localhost), then send a request through the deployed gateway to watch a trace appear live on the dashboard.
 
 **Free-tier caveats:** free web services spin down after 15 minutes of inactivity and take ~30-60s to wake on the next request — the first load after idle time will be slow, not broken. Free Postgres expires 30 days after creation, unconditionally — see the next section for how this repo handles that without paying.
 
 ## Keeping the free deploy alive
 
-Render's free Postgres doesn't pause and resume like the free web services do — it's deleted 30 days after creation, no matter how much traffic it gets. [`.github/workflows/rotate-postgres.yml`](.github/workflows/rotate-postgres.yml) works around this without paying: every 25 days (5-day safety margin) it creates a new free Postgres instance, runs migrations + seed against it, re-points `DATABASE_URL` on all three backend services via Render's API, redeploys them, waits for `api` to come back up successfully on the new database, and only then deletes the old instance. If any step fails, it stops without touching the old (still-working) database — see the workflow file's comments for the exact failure behavior at each step.
+Render's free Postgres doesn't pause and resume like the free web services do — it's deleted 30 days after creation, no matter how much traffic it gets. [`.github/workflows/rotate-postgres.yml`](.github/workflows/rotate-postgres.yml) works around this without paying: every 25 days (5-day safety margin) it creates a new free Postgres instance, runs migrations against it (no seeding — the deployed instance stays empty by design, see the previous section), re-points `DATABASE_URL` on all three backend services via Render's API, redeploys them, waits for `api` to come back up successfully on the new database, and only then deletes the old instance. If any step fails, it stops without touching the old (still-working) database — see the workflow file's comments for the exact failure behavior at each step.
 
 ### One-time setup
 

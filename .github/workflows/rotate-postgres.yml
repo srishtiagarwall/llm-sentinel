@@ -112,11 +112,10 @@ jobs:
           echo "::error::Migrations failed after 5 attempts against the new database. Old database was NOT touched; delete the orphaned new instance manually from the Render dashboard."
           exit 1
 
-      - name: Seed demo data into the new database
-        env:
-          DATABASE_URL: ${{ steps.conn.outputs.url }}?sslmode=require
-        run: npm run seed -w api
-
+      # Deliberately no seed step here — the deployed instance is meant to
+      # stay genuinely empty by default so anyone evaluating it can register
+      # their own tenant and watch real traces get created, rather than
+      # landing on a pre-populated "demo" tenant that looks hardcoded.
       # From here on, every Render service update targets one env var by
       # name (PUT /env-vars/{key}) rather than the bulk PUT /env-vars
       # endpoint, which replaces the ENTIRE env var list — using it here
